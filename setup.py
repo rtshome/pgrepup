@@ -17,10 +17,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Upgrade PostgreSQL using logical replication
-Pgrepup is an open-source tool written in Python for performing a major version upgrade between
-two PostgreSQL clusters.
-Pgrepup is distributed under GNU GPL 3 and maintained by Denis Gasparin.
+"""Upgrade PostgreSQL clusters using logical replication
+
+pgrepup is an open-source tool for performing a major version upgrade between
+two PostgreSQL clusters using pglogical extension by 2nd Quadrant. PostgreSQL versions supported are 9.4, 9.5 and 9.6.
+pgrepup is distributed under GNU GPL 3 and maintained by Denis Gasparin <denis@gasparin.net>.
 """
 
 import sys
@@ -32,12 +33,6 @@ except ImportError:
 
 if sys.version_info < (2, 6):
     raise SystemExit('ERROR: Pgrepup needs at least python 2.6 to work')
-
-# Depend on pytest_runner only when the tests are actually invoked
-needs_pytest = set(['pytest', 'test']).intersection(sys.argv)
-pytest_runner = ['pytest_runner'] if needs_pytest else []
-
-setup_requires = pytest_runner
 
 install_requires = [
     'psycopg2 >= 2.4.2',
@@ -62,7 +57,7 @@ setup(
     author='Denis Gasparin',
     author_email='denis@gasparin.net',
     url='https://www.github.com/rtshome/pgrepup',
-    packages=['pgrepup', ],
+    packages=['pgrepup', 'pgrepup/commands', 'pgrepup/helpers'],
     scripts=['bin/pgrepup', ],
     data_files=[],
     license='GPL-3.0',
@@ -85,6 +80,6 @@ setup(
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
     ],
-    setup_requires=setup_requires,
+    setup_requires=[],
     tests_require=[],
 )
