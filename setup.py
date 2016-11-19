@@ -18,8 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """Upgrade PostgreSQL using logical replication
-Pgrepup is an open-source tool for perfoming a major version upgrade between
-two PostgreSQL databases written in Python.
+Pgrepup is an open-source tool written in Python for performing a major version upgrade between
+two PostgreSQL clusters.
 Pgrepup is distributed under GNU GPL 3 and maintained by Denis Gasparin.
 """
 
@@ -61,7 +61,7 @@ setup(
     version=pgrepup['__version__'],
     author='Denis Gasparin',
     author_email='denis@gasparin.net',
-    url='https://www.github.org/rtshome/pgrepup',
+    url='https://www.github.com/rtshome/pgrepup',
     packages=['pgrepup', ],
     scripts=['bin/pgrepup', ],
     data_files=[],
@@ -86,10 +86,5 @@ setup(
         'Programming Language :: Python :: 3.5',
     ],
     setup_requires=setup_requires,
-    tests_require=[
-        'mock',
-        'pytest-catchlog>=1.2.1',
-        'pytest-timeout',
-        'pytest',
-    ],
+    tests_require=[],
 )
