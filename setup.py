@@ -31,7 +31,7 @@ except ImportError:
     from distutils.core import setup
 
 if sys.version_info < (2, 6):
-    raise SystemExit('ERROR: Barman needs at least python 2.6 to work')
+    raise SystemExit('ERROR: Pgrepup needs at least python 2.6 to work')
 
 # Depend on pytest_runner only when the tests are actually invoked
 needs_pytest = set(['pytest', 'test']).intersection(sys.argv)
