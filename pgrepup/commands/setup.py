@@ -30,7 +30,7 @@ def setup(**kwargs):
         result = False
 
     output_cli_message("Check if there are active subscriptions in Destination nodes")
-    print(output_cli_result(result, -4))
+    print(output_cli_result(result, compensation=-4))
     if not result:
         print "    " + colored.yellow("Hint: use pgrepup stop to terminate the subscriptions")
         sys.exit(1)
@@ -38,7 +38,7 @@ def setup(**kwargs):
     targets = ['Source', 'Destination']
     files_to_clean = []
     try:
-        output_cli_message("Global tasks")
+        output_cli_message("Global tasks", color='cyan')
         puts("")
         with indent(4, quote=' >'):
             output_cli_message("Remove nodes from Destination cluster")
@@ -53,20 +53,21 @@ def setup(**kwargs):
             pg_pass = create_pgpass_file()
             print(output_cli_result(bool(pg_pass)))
 
-            output_cli_message("Drop pg_logical extension in all databases")
-            print
-            with indent(4, quote=' '):
-                for db in get_cluster_databases(connect('Source')):
-                    output_cli_message(db)
-                    if not clean_pglogical_setup(db):
-                        print(output_cli_result(False, compensation=4))
-                        continue
-                    print(output_cli_result(True, compensation=4))
+            for t in targets:
+                output_cli_message("Drop pg_logical extension in all databases of %s cluster" % t)
+                print
+                with indent(4, quote=' '):
+                    for db in get_cluster_databases(connect(t)):
+                        output_cli_message(db)
+                        if not clean_pglogical_setup(t, db):
+                            print(output_cli_result(False, compensation=4))
+                            continue
+                        print(output_cli_result(True, compensation=4))
 
         source_setup_results = {}
         for t in targets:
             results = checks(t)
-            output_cli_message("Setup %s" % t)
+            output_cli_message("Setup %s" % t, color='cyan')
             if not results['result']:
                 print(output_cli_result('Skipped'))
                 continue
@@ -84,7 +85,7 @@ def setup(**kwargs):
                         source_setup_results=source_setup_results
                     )
     finally:
-        output_cli_message("Cleaning up")
+        output_cli_message("Cleaning up", color='cyan')
         puts("")
         with indent(4, quote=' >'):
             output_cli_message("Remove temporary pgpass file")

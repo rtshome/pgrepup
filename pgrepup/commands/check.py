@@ -21,6 +21,7 @@ from clint.textui import puts, colored, indent
 from ..helpers.docopt_dispatch import dispatch
 from ..helpers.operation_target import get_target
 from ..helpers.database import *
+from ..helpers.ui import *
 
 
 this = sys.modules[__name__]
@@ -31,6 +32,9 @@ this.current_position = 0
 def check(**kwargs):
     target = get_target(kwargs)
 
+    # Shortcut to ask master password before output Configuration message
+    decrypt(config().get('Source', 'password'))
+
     targets = []
     if target == 'source':
         targets.append('Source')
@@ -40,64 +44,66 @@ def check(**kwargs):
         targets.append('Source')
         targets.append('Destination')
 
-    puts("Global checkings...")
+    output_cli_message("Global checkings...", color='cyan')
+    print
 
     with indent(4, quote=' >'):
-        output_check_message("Folder %s exists and is writable" % get_tmp_folder())
+        output_cli_message("Folder %s exists and is writable" % get_tmp_folder())
         c = checks('Source', 'tmp_folder')
-        print(output_check_result(c['results']['tmp_folder']))
+        print(output_cli_result(c['results']['tmp_folder']))
 
     for t in targets:
-        puts("Checking %s..." % t)
+        output_cli_message("Checking %s..." % t, color='cyan')
+        print
         with indent(4, quote=' >'):
-            output_check_message("Connection PostgreSQL connection to %(host)s:%(port)s with user %(user)s" %
+            output_cli_message("Connection PostgreSQL connection to %(host)s:%(port)s with user %(user)s" %
                                  get_connection_params(t))
             c = checks(t, 'connection')
-            print(output_check_result(c['results']['connection']))
+            print(output_cli_result(c['results']['connection']))
             conn = None
             if c['results']['connection']:
                 conn = c['data']['conn']
 
-            output_check_message("If pglogical extension is installed")
+            output_cli_message("If pglogical extension is installed")
             c = checks(t, 'pglogical_installed', db_conn=conn)
-            print(output_check_result(c['results']['pglogical_installed']))
+            print(output_cli_result(c['results']['pglogical_installed']))
 
-            output_check_message("Needed wal_level setting")
+            output_cli_message("Needed wal_level setting")
             c = checks(t, 'wal_level', db_conn=conn)
-            print(output_check_result(c['results']['wal_level']))
+            print(output_cli_result(c['results']['wal_level']))
             if not c['results']['wal_level']:
                 output_hint("Set wal_level to logical")
 
-            output_check_message("Needed max_worker_processes setting")
+            output_cli_message("Needed max_worker_processes setting")
             c = checks(t, 'max_worker_processes', db_conn=conn)
-            print(output_check_result(c['results']['max_worker_processes']))
+            print(output_cli_result(c['results']['max_worker_processes']))
             if not c['results']['max_worker_processes']:
                 output_hint("Increase max_worker_processes to %d" % c['data']['needed_worker_processes'])
 
-            output_check_message("Needed max_replication_slots setting")
+            output_cli_message("Needed max_replication_slots setting")
             c = checks(t, 'max_replication_slots', db_conn=conn)
-            print(output_check_result(c['results']['max_replication_slots']))
+            print(output_cli_result(c['results']['max_replication_slots']))
             if not c['results']['max_replication_slots']:
                 output_hint("Increase max_replication_slots to %d" % c['data']['needed_max_replication_slots'])
 
-            output_check_message("Needed max_wal_senders setting")
+            output_cli_message("Needed max_wal_senders setting")
             c = checks(t, 'max_wal_senders', db_conn=conn)
-            print(output_check_result(c['results']['max_wal_senders']))
+            print(output_cli_result(c['results']['max_wal_senders']))
             if not c['results']['max_wal_senders']:
                 output_hint("Increase max_wal_senders to %d" % c['data']['needed_max_wal_senders'])
 
-            output_check_message("pg_hba.conf settings")
+            output_cli_message("pg_hba.conf settings")
             c = checks(t, 'pg_hba.conf', db_conn=conn)
-            print(output_check_result(c['results']['pg_hba.conf']))
+            print(output_cli_result(c['results']['pg_hba.conf']))
             if not c['results']['pg_hba.conf']:
                 output_hint("Add the following lines to %s:" % c['data']['pg_hba.conf'])
                 print("        " + colored.yellow(c['data']['pg_hba_replication_rule']))
                 print("        " + colored.yellow(c['data']['pg_hba_connection_rule']))
                 print("    " + colored.yellow("After adding the lines, remember to reload postgreSQL"))
 
-            output_check_message("Local pg_dumpall version")
+            output_cli_message("Local pg_dumpall version")
             c = checks(t, 'pg_dumpall', db_conn=conn)
-            print(output_check_result(c['results']['pg_dumpall']))
+            print(output_cli_result(c['results']['pg_dumpall']))
             if not c['results']['pg_dumpall']:
                 output_hint(c['data']['pg_dumpall'])
 
@@ -284,22 +290,21 @@ def checks(target, single_test=None, db_conn=None):
         'data': reusable_results
     }
 
-
-def output_check_result(result):
-
-    if isinstance(result, bool):
-        text = colored.green('OK') if result else colored.red('KO')
-    else:
-        text = colored.black(result)
-
-    return '.' * (80 - this.current_position - len(text)) + text
-
-
-def output_check_message(text):
-    this.current_position = len(text)+1
-    puts(text + ' ', False)
-
-
+#
+# def output_cli_result(result):
+#
+#     if isinstance(result, bool):
+#         text = colored.green('OK') if result else colored.red('KO')
+#     else:
+#         text = colored.black(result)
+#
+#     return '.' * (80 - this.current_position - len(text)) + text
+#
+#
+# def output_cli_message(text):
+#     this.current_position = len(text)+1
+#     puts(text + ' ', False)
+#
+#
 def output_hint(hint):
     print "    " + colored.yellow("Hint: " + hint)
-

@@ -23,7 +23,10 @@ from ..helpers.database import *
 @dispatch.on('start')
 def start(**kwargs):
 
-    output_cli_message("Start replication and upgrade")
+    # Shortcut to ask master password before output Configuration message
+    decrypt(config().get('Source', 'password'))
+
+    output_cli_message("Start replication and upgrade", color='cyan')
     puts("")
     databases = get_cluster_databases(connect('Destination'))
     with indent(4, quote=' >'):

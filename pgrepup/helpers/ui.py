@@ -22,8 +22,13 @@ this = sys.modules[__name__]
 this.current_position = 0
 
 
-def output_cli_message(text):
+def output_cli_message(text, color=None):
     this.current_position = len(text) + 1
+    if color:
+        do_color = getattr(colored, color, None)
+        if callable(do_color):
+            text = do_color(text)
+
     puts(text + ' ', False)
 
 
@@ -31,6 +36,6 @@ def output_cli_result(result, compensation=0):
     if isinstance(result, bool):
         text = colored.green('OK') if result else colored.red('KO')
     else:
-        text = colored.black(result)
+        text = colored.yellow(result)
 
     return '.' * (80 - this.current_position - len(text) - compensation) + text

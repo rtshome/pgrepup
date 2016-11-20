@@ -23,7 +23,7 @@ from stop import stop
 def uninstall(**kwargs):
     stop()
 
-    output_cli_message("Uninstall operations")
+    output_cli_message("Uninstall operations", color='cyan')
     puts("")
     with indent(4, quote=' >'):
         output_cli_message("Remove nodes from Destination cluster")
@@ -43,7 +43,7 @@ def uninstall(**kwargs):
                 with indent(4, quote=' '):
                     for db in get_cluster_databases(connect(t)):
                         output_cli_message(db)
-                        if not clean_pglogical_setup(db):
+                        if not clean_pglogical_setup(t, db):
                             print(output_cli_result(False, compensation=8))
                             continue
                         print(output_cli_result(True, compensation=8))

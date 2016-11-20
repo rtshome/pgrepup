@@ -173,8 +173,8 @@ def create_replication_sets(db):
         return False
 
 
-def clean_pglogical_setup(db):
-    db_conn = connect('Source', db)
+def clean_pglogical_setup(target, db):
+    db_conn = connect(target, db)
     db_conn.autocommit = True
     if not db_conn:
         return False

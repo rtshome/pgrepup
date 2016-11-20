@@ -29,7 +29,7 @@ def status(**kwargs):
     # Shortcut to ask master password before output Configuration message
     decrypt(config().get('Source', 'password'))
 
-    output_cli_message("Configuration")
+    output_cli_message("Configuration", color='cyan')
     puts("")
     check_results = {}
     with indent(4, quote=' >'):
@@ -39,7 +39,7 @@ def status(**kwargs):
             print(output_cli_result(results['result']))
             check_results[t] = results['result']
 
-    output_cli_message("Pglogical setup")
+    output_cli_message("Pglogical setup", color='cyan')
     puts("")
     setup_results = {}
     with indent(4, quote=' >'):
@@ -53,7 +53,7 @@ def status(**kwargs):
                     setup_results[t][db] = get_setup_result(t, db)
                     print(output_cli_result(setup_results[t][db], compensation=4))
 
-    output_cli_message("Replication status")
+    output_cli_message("Replication status", color='cyan')
     puts("")
     with indent(4, quote=' >'):
         for db in get_cluster_databases(connect(t)):
@@ -71,4 +71,9 @@ def status(**kwargs):
                     output_cli_message("Replication status")
                     print(output_cli_result(r['status'], compensation=4))
         output_cli_message("Xlog difference (bytes)")
-        print(output_cli_result("%d" % get_replication_delay()))
+
+        rep_delay = get_replication_delay()
+        if rep_delay:
+            print(output_cli_result("%d" % rep_delay))
+        else:
+            print(output_cli_result("Skipped"))

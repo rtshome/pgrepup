@@ -25,7 +25,7 @@ def stop(**kwargs):
     # Shortcut to ask master password before output Configuration message
     decrypt(config().get('Source', 'password'))
 
-    output_cli_message("Check active subscriptions in Destination nodes")
+    output_cli_message("Check active subscriptions in Destination nodes", color='cyan')
     puts("")
     subscriptions = get_destination_subscriptions()
     with indent(4, quote=' >'):
@@ -36,7 +36,7 @@ def stop(**kwargs):
             if subscriptions[s]:
                 with indent(4, quote=' '):
                     output_cli_message("Launch stop command")
-                    syncronize_sequences(s) # must be done BEFORE stopping subscriptions
+                    syncronize_sequences(s)  # must be done BEFORE stopping subscriptions
                     stop_subscription(s)
                     print(output_cli_result("Stopped", 8))
 
