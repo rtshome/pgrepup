@@ -39,3 +39,7 @@ def output_cli_result(result, compensation=0):
         text = colored.yellow(result)
 
     return '.' * (80 - this.current_position - len(text) - compensation) + text
+
+
+def output_hint(hint):
+    print "    " + colored.yellow("Hint: " + hint)

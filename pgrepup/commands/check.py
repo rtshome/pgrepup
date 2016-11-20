@@ -16,16 +16,10 @@
 # along with Pgrepup. If not, see <http://www.gnu.org/licenses/>.
 import re
 import subprocess
-import sys
-from clint.textui import puts, colored, indent
 from ..helpers.docopt_dispatch import dispatch
 from ..helpers.operation_target import get_target
 from ..helpers.database import *
 from ..helpers.ui import *
-
-
-this = sys.modules[__name__]
-this.current_position = 0
 
 
 @dispatch.on('check')
@@ -64,9 +58,15 @@ def check(**kwargs):
             if c['results']['connection']:
                 conn = c['data']['conn']
 
-            output_cli_message("If pglogical extension is installed")
+            output_cli_message("pglogical installation")
             c = checks(t, 'pglogical_installed', db_conn=conn)
-            print(output_cli_result(c['results']['pglogical_installed']))
+            if c['results']['pglogical_installed'] == 'NotInstalled':
+                print(output_cli_result(False))
+                print
+                output_hint("Install docs at " +
+                            "https://2ndquadrant.com/it/resources/pglogical/pglogical-installation-instructions/\n")
+            else:
+                print(output_cli_result(c['results']['pglogical_installed']))
 
             output_cli_message("Needed wal_level setting")
             c = checks(t, 'wal_level', db_conn=conn)
@@ -289,22 +289,3 @@ def checks(target, single_test=None, db_conn=None):
         'results': checks_result,
         'data': reusable_results
     }
-
-#
-# def output_cli_result(result):
-#
-#     if isinstance(result, bool):
-#         text = colored.green('OK') if result else colored.red('KO')
-#     else:
-#         text = colored.black(result)
-#
-#     return '.' * (80 - this.current_position - len(text)) + text
-#
-#
-# def output_cli_message(text):
-#     this.current_position = len(text)+1
-#     puts(text + ' ', False)
-#
-#
-def output_hint(hint):
-    print "    " + colored.yellow("Hint: " + hint)
