@@ -159,7 +159,7 @@ def checks(target, single_test=None, db_conn=None):
             else:
                 source_db_conn = db_conn
             needed_value = get_database_count(source_db_conn)
-            current_value = get_setting_value(source_db_conn, 'max_replication_slots')
+            current_value = get_setting_value(db_conn, 'max_replication_slots')
             checks_result[c] = int(current_value) >= needed_value
             if not checks_result[c]:
                 reusable_results['needed_max_replication_slots'] = needed_value
