@@ -58,13 +58,15 @@ def stop_subscription(db):
     db_conn = connect('Destination', db_name=db)
     db_conn.autocommit = True
     cur = db_conn.cursor()
-    while True:
-        cur.execute("SELECT * FROM pglogical.drop_subscription(subscription_name := %s, ifexists := false)",
-                    ['subscription'])
-        if cur.fetchone()[0] == 0:
-            break
-        sleep(1)
-
+    try:
+        while True:
+            cur.execute("SELECT * FROM pglogical.drop_subscription(subscription_name := %s, ifexists := false)",
+                        ['subscription'])
+            if cur.fetchone()[0] == 0:
+                break
+            sleep(1)
+    except Error as e:
+        return False
     return True
 
 
@@ -87,17 +89,21 @@ def drop_node(db):
 def start_subscription(db):
     db_conn = connect('Destination', db)
     db_conn.autocommit = True
-    c = db_conn.cursor()
-    c.execute(
-        """
-        SELECT pglogical.create_subscription(
-                                subscription_name := 'subscription',
-                                provider_dsn := %s,
-                                replication_sets := '{default}'::text[]
-        );
-        """,
-        [get_dsn_for_pglogical('Source', db)]
-    )
+    try:
+        c = db_conn.cursor()
+        c.execute(
+            """
+            SELECT pglogical.create_subscription(
+                                    subscription_name := 'subscription',
+                                    provider_dsn := %s,
+                                    replication_sets := '{default}'::text[]
+            );
+            """,
+            [get_dsn_for_pglogical('Source', db)]
+        )
+        return True
+    except Error as e:
+        return False
 
 
 def syncronize_sequences(db):

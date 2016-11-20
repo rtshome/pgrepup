@@ -32,5 +32,4 @@ def start(**kwargs):
     with indent(4, quote=' >'):
         for d in databases:
             output_cli_message(d)
-            start_subscription(d)
-            print(output_cli_result(True, 4))
+            print(output_cli_result(start_subscription(d), 4))
