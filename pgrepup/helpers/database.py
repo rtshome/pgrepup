@@ -268,7 +268,7 @@ def table_has_primary_key(db_conn, schema, table):
     LEFT JOIN pg_catalog.pg_constraint con
         ON (conrelid = i.indrelid AND conindid = i.indexrelid AND contype IN ('p','u','x'))
     WHERE c.oid = (SELECT oid FROM s) AND c.oid = i.indrelid AND i.indexrelid = c2.oid AND i.indisprimary = 't';
-    """, [schema, table])
+    """, [table, schema])
 
     return c.fetchone()[0] > 0
 
