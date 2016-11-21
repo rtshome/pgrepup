@@ -259,8 +259,8 @@ def table_has_primary_key(db_conn, schema, table):
     WITH s AS (
             SELECT c.oid FROM pg_catalog.pg_class c LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
             WHERE
-                c.relname ~ '^(%s)$' AND
-                n.nspname = '%s' AND
+                c.relname = %s AND
+                n.nspname = %s AND
                 pg_catalog.pg_table_is_visible(c.oid)
     )
     SELECT COUNT(*)
