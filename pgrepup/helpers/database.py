@@ -255,8 +255,21 @@ def get_database_tables(db_conn):
 
 def table_has_primary_key(db_conn, schema, table):
     c = db_conn.cursor()
-    c.execute("""SELECT COUNT(*) FROM pg_indexes
-                 WHERE schemaname=%s AND tablename=%s AND indexdef ILIKE 'create unique%%';""", [schema, table])
+    c.execute("""
+    WITH s AS (
+            SELECT c.oid FROM pg_catalog.pg_class c LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            WHERE
+                c.relname ~ '^(%s)$' AND
+                n.nspname = '%s' AND
+                pg_catalog.pg_table_is_visible(c.oid)
+    )
+    SELECT COUNT(*)
+    FROM pg_catalog.pg_class c, pg_catalog.pg_class c2, pg_catalog.pg_index i
+    LEFT JOIN pg_catalog.pg_constraint con
+        ON (conrelid = i.indrelid AND conindid = i.indexrelid AND contype IN ('p','u','x'))
+    WHERE c.oid = (SELECT oid FROM s) AND c.oid = i.indrelid AND i.indexrelid = c2.oid AND i.indisprimary = 't';
+    """, [schema, table])
+
     return c.fetchone()[0] > 0
 
 
