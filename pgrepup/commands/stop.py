@@ -33,7 +33,7 @@ def stop(**kwargs):
         for s in iter(subscriptions.keys()):
             output_cli_message(s)
             message = colored.yellow("Active") if subscriptions[s] else colored.green("Stopped")
-            print(output_cli_result(message, 4))
+            print(output_cli_result(message))
             if subscriptions[s]:
                 with indent(4, quote=' '):
                     output_cli_message("Launch stop command")

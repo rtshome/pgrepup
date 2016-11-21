@@ -21,6 +21,7 @@ Pgrepup
 Usage:
   pgrepup [-c config] config
   pgrepup [-c config] check [source|destination|all]
+  pgrepup [-c config] fix
   pgrepup [-c config] setup
   pgrepup [-c config] start
   pgrepup [-c config] status

@@ -51,7 +51,7 @@ def check(**kwargs):
         print
         with indent(4, quote=' >'):
             output_cli_message("Connection PostgreSQL connection to %(host)s:%(port)s with user %(user)s" %
-                                 get_connection_params(t))
+                               get_connection_params(t))
             c = checks(t, 'connection')
             print(output_cli_result(c['results']['connection']))
             conn = None
@@ -65,6 +65,9 @@ def check(**kwargs):
                 print
                 output_hint("Install docs at " +
                             "https://2ndquadrant.com/it/resources/pglogical/pglogical-installation-instructions/\n")
+            elif c['results']['pglogical_installed'] == 'InstalledNoSharedLibraries':
+                print(output_cli_result(False))
+                output_hint("Add pglogical.so to shared_preload_libraries in postgresql.conf")
             else:
                 print(output_cli_result(c['results']['pglogical_installed']))
 
@@ -107,6 +110,24 @@ def check(**kwargs):
             if not c['results']['pg_dumpall']:
                 output_hint(c['data']['pg_dumpall'])
 
+            if t == 'Source':
+                output_cli_message("Source cluster tables without primary keys")
+                c = checks(t, 'src_databases', db_conn=conn)
+                print
+                with indent(4, quote=' '):
+                    for db in c['data']['src_databases'].keys():
+                        output_cli_message(db)
+                        if len(c['data']['src_databases'][db].keys()) == 0:
+                            print(output_cli_result(True, compensation=4))
+                        else:
+                            print
+                            with indent(4, quote=' '):
+                                for table in c['data']['src_databases'][db].keys():
+                                    output_cli_message(table)
+                                    print(output_cli_result(c['data']['src_databases'][db][table], compensation=8))
+                                    if not c['data']['src_databases'][db][table]:
+                                        output_hint("Add a primary key or unique index or use the pgrepup fix command")
+
 
 def checks(target, single_test=None, db_conn=None):
     checks_to_do = [single_test] if single_test else [
@@ -118,7 +139,8 @@ def checks(target, single_test=None, db_conn=None):
         "wal_level",
         "max_wal_senders",
         "pg_hba.conf",
-        "pg_dumpall"
+        "pg_dumpall",
+        "src_databases"
     ]
     checks_result = {}
     reusable_results = {}
@@ -279,6 +301,22 @@ def checks(target, single_test=None, db_conn=None):
                 checks_result[c] = True
             except:
                 checks_result[c] = False
+
+        elif c == 'src_databases':
+            if not db_conn:
+                continue
+            if target == 'Destination':
+                continue
+
+            checks_result[c] = True
+            reusable_results['src_databases'] = {}
+            for db in get_cluster_databases(db_conn):
+                s_db_conn = connect('Source', db_name=db)
+                reusable_results['src_databases'][db] = {}
+                for table in get_database_tables(s_db_conn):
+                    t_r = table_has_primary_key(s_db_conn, table['schema'], table['table'])
+                    reusable_results['src_databases'][db]["%s.%s" % (table['schema'], table['table'])] = t_r
+                    checks_result[c] = checks_result[c] and t_r
 
     overall_result = True
     for r in iter(checks_result.keys()):

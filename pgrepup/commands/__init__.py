@@ -5,3 +5,4 @@ from stop import stop
 from start import start
 from status import status
 from uninstall import uninstall
+from fix import fix

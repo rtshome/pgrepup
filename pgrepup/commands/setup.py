@@ -69,7 +69,7 @@ def setup(**kwargs):
             results = checks(t)
             output_cli_message("Setup %s" % t, color='cyan')
             if not results['result']:
-                print(output_cli_result('Skipped'))
+                print(output_cli_result(colored.red('Skipped, configuration problems'), compensation=-4))
                 continue
 
             puts("")
@@ -92,6 +92,8 @@ def setup(**kwargs):
             print(output_cli_result(remove_pgpass_file()))
 
             output_cli_message("Remove other temporary files")
+            if len(files_to_clean) == 0:
+                print(output_cli_result(True))
             for tempf in files_to_clean:
                 try:
                     os.unlink(tempf)

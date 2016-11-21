@@ -241,3 +241,46 @@ FROM pg_catalog.pg_namespace n
 WHERE n.nspname !~ '^pg_|pglogical|information_schema'
 ORDER BY 1;""")
     return [r[0] for r in c.fetchall()]
+
+
+def get_database_tables(db_conn):
+    c = db_conn.cursor()
+    c.execute("""SELECT schemaname, tablename
+                 FROM pg_tables WHERE schemaname NOT IN ('pg_catalog', 'information_schema', 'pglogical');""")
+    result = []
+    for r in c.fetchall():
+        result.append({'schema': r[0], 'table': r[1]})
+    return result
+
+
+def table_has_primary_key(db_conn, schema, table):
+    c = db_conn.cursor()
+    c.execute("""SELECT COUNT(*) FROM pg_indexes
+                 WHERE schemaname=%s AND tablename=%s AND indexdef ILIKE 'create unique%%';""", [schema, table])
+    return c.fetchone()[0] > 0
+
+
+def get_unique_field_name():
+    return "__pgrepup_id"
+
+
+def add_table_unique_index(db_conn, schema, table):
+    try:
+        c = db_conn.cursor()
+        c.execute("ALTER TABLE %s.%s ADD COLUMN %s BIGSERIAL NOT NULL UNIQUE" % (schema, table, get_unique_field_name()))
+        db_conn.commit()
+        return True
+    except psycopg2.Error:
+        db_conn.rollback()
+        return False
+
+
+def drop_table_field(db_conn, schema, table, field):
+    try:
+        c = db_conn.cursor()
+        c.execute("ALTER TABLE %s.%s DROP COLUMN IF EXISTS %s" % (schema, table, field))
+        db_conn.commit()
+        return True
+    except psycopg2.Error:
+        db_conn.rollback()
+        return False
