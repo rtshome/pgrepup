@@ -267,7 +267,7 @@ def get_unique_field_name():
 def add_table_unique_index(db_conn, schema, table):
     try:
         c = db_conn.cursor()
-        c.execute("ALTER TABLE %s.%s ADD COLUMN %s BIGSERIAL NOT NULL UNIQUE" % (schema, table, get_unique_field_name()))
+        c.execute("ALTER TABLE %s.%s ADD COLUMN %s BIGSERIAL NOT NULL PRIMARY KEY" % (schema, table, get_unique_field_name()))
         db_conn.commit()
         return True
     except psycopg2.Error:
