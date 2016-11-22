@@ -171,7 +171,10 @@ def checks(target, single_test=None, db_conn=None):
             if not db_conn:
                 continue
 
-            needed_worker_processes = int(get_database_count(db_conn))
+            if target == 'Source':
+                needed_worker_processes = int(get_database_count(db_conn)) + 1
+            else:
+                needed_worker_processes = int(get_database_count(db_conn))*2 + 1
 
             current_worker_processes = get_setting_value(db_conn, 'max_worker_processes')
             checks_result[c] = int(current_worker_processes) >= needed_worker_processes
@@ -306,6 +309,7 @@ def checks(target, single_test=None, db_conn=None):
             if not db_conn:
                 continue
             if target == 'Destination':
+                checks_result[c] = True
                 continue
 
             checks_result[c] = True

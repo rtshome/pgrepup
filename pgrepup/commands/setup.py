@@ -156,7 +156,7 @@ def _setup_destination(conn, pg_pass, source_setup_results):
     if source_setup_results.has_key('pg_dumpall'):
         restore_schema_result = \
             os.system(
-                "PGPASSFILE=%(pgpass)s psql -U %(user)s -h %(host)s -p%(port)s -f %(fname)s -d postgres &>/dev/null"
+                "PGPASSFILE=%(pgpass)s psql -U %(user)s -h %(host)s -p%(port)s -f %(fname)s -d postgres >/dev/null 2>&1"
                 % merge_two_dicts(
                     get_connection_params('Destination'),
                     {"fname": source_setup_results['pg_dumpall'], "pgpass": pg_pass}
