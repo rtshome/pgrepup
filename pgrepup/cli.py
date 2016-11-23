@@ -16,7 +16,8 @@
 # along with Pgrepup. If not, see <http://www.gnu.org/licenses/>.
 
 """
-Pgrepup
+Pgrepup - PostGreSQL REplicate and UPgrade
+A tool for upgrading a PostgreSQL cluster to a new major version using logical replication.
 
 Usage:
   pgrepup [-c config] config
@@ -34,6 +35,22 @@ Options:
   -c config     Optional config file. [default: ~/.pgrepup]
   -h --help     Show this screen
   --version     Show version
+
+Quick start:
+    1) Configure pgrepup using the config command
+    pgrepup config
+
+    2) Check source and destination clusters with the check command
+    pgrepup check
+
+    3) Apply all the hints/fixes suggested by the check command
+
+    4) Prepare both clusters for replication using pglogical
+    pgrepup setup
+
+    5) Launch the replication process using the start command
+    pgrepup start
+
 """
 from version import __version__
 from clint.textui import puts, colored
