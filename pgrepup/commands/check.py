@@ -273,7 +273,7 @@ def checks(target, single_test=None, db_conn=None):
                 checks_result[c] = False
                 continue
             # see semver._REGEX
-            version_rule = re.compile(r""".*((?P<major>(?:0|[1-9][0-9]*))\.(?P<minor>(?:0|[1-9][0-9]*))\.(?P<patch>(?:0|[1-9][0-9]*))(\-(?P<prerelease>(?:0|[1-9A-Za-z-][0-9A-Za-z-]*)(\.(?:0|[1-9A-Za-z-][0-9A-Za-z-]*))*))?(\+(?P<build>[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?|\d{2}\.\d{1}).*""", re.VERBOSE)
+            version_rule = re.compile(r""".*pg_dumpall \(PostgreSQL\) ([0-9.]+).*""")
             pg_dumpall_version = subprocess.check_output(["pg_dumpall", "--version"])
             pg_dumpall_version = version_rule.match(pg_dumpall_version)
             if not pg_dumpall_version:
