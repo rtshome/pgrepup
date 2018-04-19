@@ -166,7 +166,7 @@ def create_replication_sets(db):
         db_schemas = get_schemas(db_conn)
         c = db_conn.cursor()
         c.execute("CREATE EXTENSION pglogical")
-        c.execute("SELECT pglogical.drop_node(node_name := %s, ifexists := false)", ['Source'])
+        c.execute("SELECT pglogical.drop_node(node_name := %s, ifexists := true)", ['Source'])
         c.execute("SELECT pglogical.create_node(node_name := %s, dsn := %s );",
                   ['Source', get_dsn_for_pglogical('Source', db_name=db)])
         c.execute("SELECT pglogical.replication_set_add_all_tables('default', '{%s}'::text[]);" % ','.join(db_schemas))
@@ -174,7 +174,7 @@ def create_replication_sets(db):
                   [db_schemas])
         db_conn.commit()
         return True
-    except:
+    except Exception as e:
         db_conn.rollback()
         return False
 
@@ -204,12 +204,12 @@ def create_pglogical_node(db):
         drop_extension(db_conn, "pglogical")
         c.execute("DROP SCHEMA IF EXISTS pglogical CASCADE")
         c.execute("CREATE EXTENSION pglogical")
-        c.execute("SELECT pglogical.drop_node(node_name := %s, ifexists := false)", ['Destination'])
+        c.execute("SELECT pglogical.drop_node(node_name := %s, ifexists := true)", ['Destination'])
         c.execute("SELECT pglogical.create_node( node_name := %s, dsn := %s );", [
             'Destination', get_dsn_for_pglogical('Destination', db)
         ])
         db_conn.commit()
-    except Error:
+    except Exception as e:
         db_conn.rollback()
         return False
 

@@ -112,7 +112,7 @@ def _setup_source(conn, pg_pass):
     pg_dumpall_schema = "%s/pg_dumpall_schema_%s.sql" % (get_tmp_folder(), uuid.uuid4().hex)
     output_cli_message("Dump globals and schema of all databases")
     pg_dumpall_schema_result = \
-        os.system("PGPASSFILE=%(pgpass)s pg_dumpall -U %(user)s -h %(host)s -p%(port)s -s -f %(fname)s --if-exists -c" %
+        os.system('sh -c "PGPASSFILE=%(pgpass)s pg_dumpall -U %(user)s -h %(host)s -p%(port)s -s -f %(fname)s --if-exists -c"' %
                   merge_two_dicts(
                       get_connection_params('Source'),
                       {"fname": pg_dumpall_schema, "pgpass": pg_pass}
@@ -156,7 +156,7 @@ def _setup_destination(conn, pg_pass, source_setup_results):
     if source_setup_results.has_key('pg_dumpall'):
         restore_schema_result = \
             os.system(
-                "PGPASSFILE=%(pgpass)s psql -U %(user)s -h %(host)s -p%(port)s -f %(fname)s -d postgres >/dev/null 2>&1"
+                'sh -c "PGPASSFILE=%(pgpass)s psql -U %(user)s -h %(host)s -p%(port)s -f %(fname)s -d postgres >/dev/null 2>&1"'
                 % merge_two_dicts(
                     get_connection_params('Destination'),
                     {"fname": source_setup_results['pg_dumpall'], "pgpass": pg_pass}
