@@ -266,6 +266,16 @@ def checks(target, single_test=None, db_conn=None):
             if other_db_version > db_version:
                 db_version = other_db_version
 
+            db_version_rule = re.compile(r'^([0-9.]+)')
+            if not db_version_rule.match(db_version):
+                reusable_results['pg_dumpall'] = "Invalid PostgreSQL version %s" % db_version
+                checks_result[c] = False
+                continue
+            db_version = db_version_rule.match(db_version).group(1)
+
+            if db_version.count('.')<2:
+                db_version += '.0'
+
             pg_dumpall_exists = os.system("which pg_dumpall >/dev/null") == 0
 
             if not pg_dumpall_exists:
@@ -273,9 +283,9 @@ def checks(target, single_test=None, db_conn=None):
                 checks_result[c] = False
                 continue
             # see semver._REGEX
-            version_rule = re.compile(r""".*pg_dumpall \(PostgreSQL\) ([0-9.]+).*""")
+            pgdumpall_version_rule = re.compile(r""".*pg_dumpall \(PostgreSQL\) ([0-9.]+).*""")
             pg_dumpall_version = subprocess.check_output(["pg_dumpall", "--version"])
-            pg_dumpall_version = version_rule.match(pg_dumpall_version)
+            pg_dumpall_version = pgdumpall_version_rule.match(pg_dumpall_version)
             if not pg_dumpall_version:
                 reusable_results['pg_dumpall'] = "Install PostgreSQL client utils locally."
                 checks_result[c] = False
@@ -283,8 +293,6 @@ def checks(target, single_test=None, db_conn=None):
             pg_dumpall_version = pg_dumpall_version.group(1)
             if pg_dumpall_version.count('.')<2:
                 pg_dumpall_version += '.0'
-            if db_version.count('.')<2:
-                db_version += '.0'
             if semver.match(pg_dumpall_version, "<" + db_version):
                 checks_result[c] = False
                 reusable_results['pg_dumpall'] = "Upgrade local PostgreSQL client utils %s to version %s" % (
