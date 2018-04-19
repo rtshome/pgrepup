@@ -14,6 +14,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Pgrepup. If not, see <http://www.gnu.org/licenses/>.
+import re
 from database import *
 from time import sleep
 from psycopg2 import Error
@@ -268,7 +269,6 @@ def get_replication_status(db):
 
     return result
 
-
 def get_replication_delay():
     db_conn = connect('Destination')
     src_db_conn = connect('Source')
@@ -278,7 +278,11 @@ def get_replication_delay():
     dest_cur.execute("SELECT remote_lsn FROM pg_replication_origin_status ORDER BY remote_lsn DESC limit 1;")
     d_lsn_r = dest_cur.fetchone()
     if d_lsn_r:
-        src_cur.execute("SELECT pg_xlog_location_diff(pg_current_xlog_location(), %s)", d_lsn_r[0])
+        src_db_version = get_postgresql_version(src_db_conn)
+        if re.match('^10',src_db_version):
+            src_cur.execute("SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), %s)", [d_lsn_r[0]])
+        else:
+            src_cur.execute("SELECT pg_xlog_location_diff(pg_current_xlog_location(), %s)", [d_lsn_r[0]])
         diff = src_cur.fetchone()
         return diff
     else:
