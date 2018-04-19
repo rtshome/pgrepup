@@ -56,7 +56,7 @@ def status(**kwargs):
     output_cli_message("Replication status", color='cyan')
     puts("")
     with indent(4, quote=' >'):
-        for db in get_cluster_databases(connect(t)):
+        for db in get_cluster_databases(connect('Destination')):
             output_cli_message("Database %s" % db)
             if not (setup_results['Source'][db] and setup_results['Destination'][db] and
                     check_results['Source'] and check_results['Destination']):

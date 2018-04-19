@@ -254,7 +254,6 @@ def get_setup_result(target, db):
 def get_replication_status(db):
     result = {"result": False, "status": None}
     db_conn = connect('Destination', db_name=db)
-    src_db_conn = connect('Source', db_name=db)
     result["result"] = False
     try:
         cur = db_conn.cursor(cursor_factory=extras.DictCursor)
@@ -264,11 +263,7 @@ def get_replication_status(db):
             result["result"] = True
             result["status"] = r['status']
 
-    except psycopg2.InternalError:
-        result["result"] = False
-    except psycopg2.OperationalError:
-        result["result"] = False
-    except psycopg2.ProgrammingError:
+    except (psycopg2.InternalError, psycopg2.OperationalError, psycopg2.ProgrammingError) as e:
         result["result"] = False
 
     return result
