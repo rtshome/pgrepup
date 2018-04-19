@@ -16,6 +16,7 @@
 # along with Pgrepup. If not, see <http://www.gnu.org/licenses/>.
 import re
 import subprocess
+import semver
 from ..helpers.docopt_dispatch import dispatch
 from ..helpers.operation_target import get_target
 from ..helpers.database import *
@@ -272,16 +273,23 @@ def checks(target, single_test=None, db_conn=None):
                 checks_result[c] = False
                 continue
 
-            version_rule = re.compile(".*([0-9]\.[0-9]\.[0-9]).*")
-            pg_dumpall_version = version_rule.match(subprocess.check_output(["pg_dumpall", "--version"]))
+            version_rule = re.compile(".*(\d{1,2}\.\d{1,2}\.\d{1,2}|\d{2}\.\d{1,2}\.\d{1,2}|\d{2}\.\d{1,2}).*")
+            pg_dumpall_version = subprocess.check_output(["pg_dumpall", "--version"])
+            pg_dumpall_version = version_rule.match(pg_dumpall_version)
             if not pg_dumpall_version:
                 reusable_results['pg_dumpall'] = "Install PostgreSQL client utils locally."
                 checks_result[c] = False
                 continue
-
-            if pg_dumpall_version.group(1) < db_version:
+            pg_dumpall_version = pg_dumpall_version.group(1)
+            if pg_dumpall_version.count('.')<2:
+                pg_dumpall_version += '.0'
+            if db_version.count('.')<2:
+                db_version += '.0'
+            if semver.match(pg_dumpall_version, "<" + db_version):
                 checks_result[c] = False
-                reusable_results['pg_dumpall'] = "Upgrade local PostgreSQL client utils to version %s" % db_version
+                reusable_results['pg_dumpall'] = "Upgrade local PostgreSQL client utils %s to version %s" % (
+                    pg_dumpall_version, db_version
+                )
                 continue
 
             checks_result[c] = True

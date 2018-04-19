@@ -60,7 +60,7 @@ def stop_subscription(db):
     cur = db_conn.cursor()
     try:
         while True:
-            cur.execute("SELECT * FROM pglogical.drop_subscription(subscription_name := %s, ifexists := false)",
+            cur.execute("SELECT * FROM pglogical.drop_subscription(subscription_name := %s, ifexists := true)",
                         ['subscription'])
             if cur.fetchone()[0] == 0:
                 break
@@ -78,7 +78,7 @@ def drop_node(db):
     cur = db_conn.cursor()
     while True:
         try:
-            cur.execute("SELECT * FROM pglogical.drop_node(node_name := 'Destination', ifexists := false);")
+            cur.execute("SELECT * FROM pglogical.drop_node(node_name := 'Destination', ifexists := true);")
         except psycopg2.ProgrammingError:
             break
         if not cur.fetchone()[0]:
