@@ -272,8 +272,8 @@ def checks(target, single_test=None, db_conn=None):
                 reusable_results['pg_dumpall'] = "Install postgresql client utils locally."
                 checks_result[c] = False
                 continue
-
-            version_rule = re.compile(".*(\d{1,2}\.\d{1,2}\.\d{1,2}|\d{2}\.\d{1,2}\.\d{1,2}|\d{2}\.\d{1,2}).*")
+            # see semver._REGEX
+            version_rule = re.compile(r""".*((?P<major>(?:0|[1-9][0-9]*))\.(?P<minor>(?:0|[1-9][0-9]*))\.(?P<patch>(?:0|[1-9][0-9]*))(\-(?P<prerelease>(?:0|[1-9A-Za-z-][0-9A-Za-z-]*)(\.(?:0|[1-9A-Za-z-][0-9A-Za-z-]*))*))?(\+(?P<build>[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?|\d{2}\.\d{1}).*""", re.VERBOSE)
             pg_dumpall_version = subprocess.check_output(["pg_dumpall", "--version"])
             pg_dumpall_version = version_rule.match(pg_dumpall_version)
             if not pg_dumpall_version:
