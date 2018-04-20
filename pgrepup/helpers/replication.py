@@ -96,8 +96,9 @@ def start_subscription(db):
             """
             SELECT pglogical.create_subscription(
                                     subscription_name := 'subscription',
-                                    provider_dsn := %s,
-                                    replication_sets := '{default}'::text[]
+                                    synchronize_structure := true,
+                                    synchronize_data := true,
+                                    provider_dsn := %s
             );
             """,
             [get_dsn_for_pglogical('Source', db)]
@@ -117,6 +118,7 @@ def syncronize_sequences(db):
 def setup_ddl_syncronization(db):
     """
     Create a trigger on CREATE TABLE/SEQUENCE events in order to replicate them to the Destination Database
+    see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication Sets for New Tables
 
     :param db:
     :return: boolean
@@ -136,9 +138,9 @@ BEGIN
     LOOP
         IF obj.schema_name = ANY(%s) AND NOT obj.in_extension THEN
             IF obj.object_type = 'table' THEN
-                PERFORM pglogical.replication_set_add_table('default', obj.objid);
+                PERFORM pglogical.replication_set_add_table(set_name := 'default', relation := obj.objid, synchronize_data := true);
             ELSIF obj.object_type = 'sequence' THEN
-                PERFORM pglogical.replication_set_add_sequence('default', obj.objid);
+                PERFORM pglogical.replication_set_add_sequence(set_name := 'default', relation := obj.objid, synchronize_data := true);
             END IF;
         END IF;
     END LOOP;
@@ -168,11 +170,20 @@ def create_replication_sets(db):
         c = db_conn.cursor()
         c.execute("CREATE EXTENSION pglogical")
         c.execute("SELECT pglogical.drop_node(node_name := %s, ifexists := true)", ['Source'])
-        c.execute("SELECT pglogical.create_node(node_name := %s, dsn := %s );",
-                  ['Source', get_dsn_for_pglogical('Source', db_name=db)])
-        c.execute("SELECT pglogical.replication_set_add_all_tables('default', '{%s}'::text[]);" % ','.join(db_schemas))
-        c.execute("SELECT pglogical.replication_set_add_all_sequences( set_name := 'default', schema_names := %s)",
-                  [db_schemas])
+        c.execute(
+            "SELECT pglogical.create_node(node_name := %s, dsn := %s )",
+            ['Source', get_dsn_for_pglogical('Source', db_name=db)]
+        )
+        c.execute(
+            """SELECT pglogical.replication_set_add_all_tables(
+                set_name := 'default', schema_names := '{%s}'::text[], synchronize_data := true
+            )""" % ','.join(db_schemas)
+        )
+        c.execute(
+            """SELECT pglogical.replication_set_add_all_sequences( 
+                      set_name := 'default', schema_names := %s, synchronize_data := true
+            )""",
+        [db_schemas])
         db_conn.commit()
         return True
     except Exception as e:

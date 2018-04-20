@@ -134,16 +134,16 @@ def _setup_source(conn, pg_pass):
                 continue
             result[db] = True
             print(output_cli_result(True, compensation=4))
-
-    # output_cli_message("Setup pglogical ddl replication on Source node name")
-    # print
-    # with indent(4, quote=' '):
-    #     for db in get_cluster_databases(conn):
-    #         output_cli_message(db)
-    #         if not setup_ddl_syncronization(db):
-    #             print(output_cli_result(False, compensation=4))
-    #             continue
-    #         print(output_cli_result(True, compensation=4))
+    # see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication Sets for New Tables
+    output_cli_message("Add trigger to add all new tables pglogical replication on Source node name")
+    print
+    with indent(4, quote=' '):
+        for db in get_cluster_databases(conn):
+            output_cli_message(db)
+            if not setup_ddl_syncronization(db):
+                print(output_cli_result(False, compensation=4))
+                continue
+            print(output_cli_result(True, compensation=4))
 
     for db in get_cluster_databases(conn):
         store_setup_result('Source', db, result[db] and result['result'])
