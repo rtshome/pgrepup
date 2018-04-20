@@ -96,7 +96,7 @@ def start_subscription(db):
             """
             SELECT pglogical.create_subscription(
                                     subscription_name := 'subscription',
-                                    synchronize_structure := true,
+                                    synchronize_structure := false,
                                     synchronize_data := true,
                                     provider_dsn := %s
             );
