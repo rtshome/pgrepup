@@ -140,7 +140,7 @@ def _setup_source(conn, pg_pass):
     with indent(4, quote=' '):
         for db in get_cluster_databases(conn):
             output_cli_message(db)
-            if not setup_ddl_syncronization(db):
+            if not setup_pg_ddl_deploy(db):
                 print(output_cli_result(False, compensation=4))
                 continue
             print(output_cli_result(True, compensation=4))

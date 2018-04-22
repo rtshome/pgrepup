@@ -115,7 +115,7 @@ def syncronize_sequences(db):
     c.execute("SELECT pglogical.synchronize_sequence( seqoid ) FROM pglogical.sequence_state")
 
 
-def setup_ddl_syncronization(db):
+def setup_pg_ddl_deploy(db):
     """
     Create a trigger on CREATE TABLE/SEQUENCE events in order to replicate them to the Destination Database
     see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication Sets for New Tables
@@ -123,36 +123,33 @@ def setup_ddl_syncronization(db):
     :param db:
     :return: boolean
     """
-    db_conn = connect('Source', db)
+    for target in ['Source','Destination']:
+        db_conn = connect(target, db)
+        try:
+            c = db_conn.cursor()
+            schemas = get_schemas(db_conn)
+            c.execute("CREATE EXTENSION IF NOT EXISTS pgl_ddl_deploy")
+            for user in [config().get('Source', 'user'), config().get('Security', 'app_owner')]:
+                if user!="":
+                    c.execute("SELECT pgl_ddl_deploy.add_role(oid) FROM pg_roles WHERE rolname = %s;", (user,))
+                    for schema in schemas:
+                        c.execute('GRANT CREATE ON DATABASE ' + schema + ' TO ' + user)
+            db_conn.commit()
+        except:
+            db_conn.rollback()
+            return False
+
     try:
-        schemas = get_schemas(db_conn)
+        db_conn = connect('Source', db)
 
         c = db_conn.cursor()
-        c.execute("DROP event trigger IF EXISTS trg_pgrepup_replicate_ddl;")
         c.execute("""
-CREATE OR REPLACE FUNCTION pgrepup_replicate_ddl()
-RETURNS event_trigger AS $$
-DECLARE obj record;
-BEGIN
-    FOR obj IN SELECT * FROM pg_event_trigger_ddl_commands() where command_tag in ('CREATE TABLE', 'CREATE TABLE AS', 'CREATE SEQUENCE')
-    LOOP
-        IF obj.schema_name = ANY(%s) AND NOT obj.in_extension THEN
-            IF obj.object_type = 'table' THEN
-                PERFORM pglogical.replication_set_add_table(set_name := 'default', relation := obj.objid, synchronize_data := true);
-            ELSIF obj.object_type = 'sequence' THEN
-                PERFORM pglogical.replication_set_add_sequence(set_name := 'default', relation := obj.objid, synchronize_data := true);
-            END IF;
-        END IF;
-    END LOOP;
-END;
-$$ LANGUAGE plpgsql;
-        """, [schemas])
-
-        c.execute("""
-CREATE EVENT TRIGGER trg_pgrepup_replicate_ddl ON ddl_command_end
-WHEN TAG IN ('CREATE TABLE', 'CREATE TABLE AS', 'CREATE SEQUENCE') EXECUTE PROCEDURE pgrepup_replicate_ddl();
+          INSERT INTO pgl_ddl_deploy.set_configs(set_name, include_schema_regex, lock_safe_deployment, allow_multi_statements)
+          VALUES ('default','.*', true, true)
         """)
-
+        c.execute("""SELECT pgl_ddl_deploy.deploy(set_name) FROM pgl_ddl_deploy.set_configs""")
+        if c.fetchone()[0]==False:
+            return False
         db_conn.commit()
         return True
     except:

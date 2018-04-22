@@ -58,6 +58,12 @@ def config(**kwargs):
         prompt.query("Folder where pgrepup store temporary dumps and pgpass file", "/tmp")
     )
 
+    conf.set(
+        "Security",
+        "app_owner",
+        prompt.query("Postgresql username as application owner", "app_owner")
+    )
+
     puts(colored.cyan("Source Database configuration"))
     conf.add_section("Source")
     conf.set("Source", "host", prompt.query("Ip address or Dns name: "))
