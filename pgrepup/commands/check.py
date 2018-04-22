@@ -72,6 +72,18 @@ def check(**kwargs):
             else:
                 print(output_cli_result(c['results']['pglogical_installed']))
 
+            output_cli_message("pg_ddl_deploy installation")
+            c = checks(t, 'pg_ddl_deploy_installed', db_conn=conn)
+            if c['results']['pg_ddl_deploy_installed'] == 'NotInstalled':
+                print(output_cli_result(False))
+                print
+                output_hint("Install docs at https://github.com/enova/pgl_ddl_deploy\n")
+            elif c['results']['pg_ddl_deploy_installed'] == 'InstalledNoSharedLibraries':
+                print(output_cli_result(False))
+                output_hint("Add pgl_ddl_deploy.so to shared_preload_libraries in postgresql.conf")
+            else:
+                print(output_cli_result(c['results']['pg_ddl_deploy_installed']))
+
             output_cli_message("Needed wal_level setting")
             c = checks(t, 'wal_level', db_conn=conn)
             print(output_cli_result(c['results']['wal_level']))
@@ -135,6 +147,7 @@ def checks(target, single_test=None, db_conn=None):
         "tmp_folder",
         "connection",
         "pglogical_installed",
+        "pg_ddl_deploy_installed",
         "max_worker_processes",
         "max_replication_slots",
         "wal_level",
@@ -167,6 +180,20 @@ def checks(target, single_test=None, db_conn=None):
             # The extension is not already present in db
             # Check if we can install it using create extension command
             checks_result[c] = create_extension(db_conn, 'pglogical', test=True)
+
+        elif c == 'pg_ddl_deploy_installed':
+            if not db_conn:
+                continue
+
+            # Look at installation instrutions at:
+            # https://github.com/enova/pgl_ddl_deploy
+            if check_extension(db_conn, 'pgl_ddl_deploy'):
+                checks_result[c] = True
+
+            # The extension is not already present in db
+            # Check if we can install it using create extension command
+            checks_result[c] = create_extension(db_conn, 'pglogical', test=False)
+            checks_result[c] = create_extension(db_conn, 'pgl_ddl_deploy', test=True)
 
         elif c == 'max_worker_processes':
             if not db_conn:
