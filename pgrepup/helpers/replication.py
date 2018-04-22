@@ -156,6 +156,18 @@ def setup_pgl_ddl_deploy(db, target):
 
     return True
 
+def clean_pgl_ddl_deploy(db, target):
+    db_conn = connect(target, db)
+    db_conn.autocommit = True
+    c = db_conn.cursor()
+    c.execute("SELECT pgl_ddl_deploy.undeploy(set_name) FROM pgl_ddl_deploy.set_configs")
+    if not db_conn:
+        return False
+    if not drop_extension(db_conn, "pgl_ddl_deploy"):
+        return False
+
+    return True
+
 
 def create_replication_sets(db):
     db_conn = connect('Source', db)
@@ -195,10 +207,6 @@ def clean_pglogical_setup(target, db):
         return False
     if not drop_extension(db_conn, "pglogical"):
         return False
-
-    c = db_conn.cursor()
-    c.execute("DROP event trigger IF EXISTS trg_pgrepup_replicate_ddl;")
-    c.execute("DROP FUNCTION IF EXISTS pgrepup_replicate_ddl()")
 
     return True
 
@@ -273,6 +281,7 @@ def get_replication_status(db):
             result["status"] = r['status']
 
     except (psycopg2.InternalError, psycopg2.OperationalError, psycopg2.ProgrammingError) as e:
+        print e
         result["result"] = False
 
     return result

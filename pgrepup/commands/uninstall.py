@@ -34,6 +34,20 @@ def uninstall(**kwargs):
                 output_cli_message(db)
                 drop_node(db)
                 print(output_cli_result(True, 4))
+        output_cli_message("Drop pgl_ddl_deploy extension in all databases")
+        print
+        with indent(4, quote=' '):
+            for t in ['Source', 'Destination']:
+                output_cli_message(t)
+                print
+                with indent(4, quote=' '):
+                    for db in get_cluster_databases(connect(t)):
+                        output_cli_message(db)
+                        if not clean_pgl_ddl_deploy(t, db):
+                            print(output_cli_result(False, compensation=8))
+                            continue
+                        print(output_cli_result(True, compensation=8))
+
 
         output_cli_message("Drop pg_logical extension in all databases")
         print
