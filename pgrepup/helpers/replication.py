@@ -156,7 +156,7 @@ def setup_pgl_ddl_deploy(db, target):
 
     return True
 
-def clean_pgl_ddl_deploy(db, target):
+def clean_pgl_ddl_deploy(target, db):
     db_conn = connect(target, db)
     db_conn.autocommit = True
     c = db_conn.cursor()
