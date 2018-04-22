@@ -231,11 +231,8 @@ def create_pglogical_node(db):
         return False;
 
     try:
-        c = db_conn.cursor()
         drop_extension(db_conn, "pglogical")
-        c.execute("BEGIN")
-        c.execute("DROP SCHEMA IF EXISTS pglogical CASCADE")
-        c.execute("DROP EXTENSION IF EXISTS pglogical")
+        c = db_conn.cursor()
         c.execute("CREATE EXTENSION IF NOT EXISTS pglogical")
 
         c.execute("SELECT pglogical.drop_node(node_name := %s, ifexists := true)", ['Destination'])
