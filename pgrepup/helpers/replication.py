@@ -115,7 +115,7 @@ def syncronize_sequences(db):
     c.execute("SELECT pglogical.synchronize_sequence( seqoid ) FROM pglogical.sequence_state")
 
 
-def setup_pg_ddl_deploy(db):
+def setup_pgl_ddl_deploy(db):
     """
     Create a trigger on CREATE TABLE/SEQUENCE events in order to replicate them to the Destination Database
     see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication Sets for New Tables
