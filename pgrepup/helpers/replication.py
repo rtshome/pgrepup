@@ -178,7 +178,7 @@ def create_replication_sets(db):
     try:
         db_schemas = get_schemas(db_conn)
         c = db_conn.cursor()
-        c.execute("CREATE EXTENSION pglogical")
+        c.execute("CREATE EXTENSION IF NOT EXISTS pglogical")
         c.execute("SELECT pglogical.drop_node(node_name := %s, ifexists := true)", ['Source'])
         c.execute(
             "SELECT pglogical.create_node(node_name := %s, dsn := %s )",
@@ -265,7 +265,7 @@ def get_setup_result(target, db):
             return False
         return r[0]
 
-    except Error:
+    except Exception:
         return False
 
 
