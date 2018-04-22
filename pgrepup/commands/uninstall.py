@@ -68,22 +68,22 @@ def uninstall(**kwargs):
 
         output_cli_message("Drop unique fields added by fix command")
         print
-        with indent(4, quote=' '):
+        with indent(8, quote=' '):
             src_db_conn = connect('Source')
-            dest_db_conn = connect('Destination')
-            with indent(4, quote=' '):
-                for db in get_cluster_databases(src_db_conn):
-                    output_cli_message(db)
-                    print
-                    src_d_db_conn = connect('Source', db_name=db)
-                    dest_d_db_conn = connect('Destination', db_name=db)
-                    with indent(4, quote=' '):
-                        for table in get_database_tables(src_d_db_conn):
-                            output_cli_message("%s.%s" % (table['schema'], table['table']))
-                            s = drop_table_field(src_d_db_conn,
-                                                 table['schema'], table['table'], get_unique_field_name())
-                            d = drop_table_field(dest_d_db_conn,
-                                                 table['schema'], table['table'], get_unique_field_name())
-                            print(output_cli_result(s and d, compensation=12))
+            for db in get_cluster_databases(src_db_conn):
+                output_cli_message(db)
+                print
+                src_d_db_conn = connect('Source', db_name=db)
+                dest_d_db_conn = connect('Destination', db_name=db)
+                with indent(4, quote=' '):
+                    for table in get_database_tables(src_d_db_conn):
+                        output_cli_message("%s.%s" % (table['schema'], table['table']))
+                        s = drop_table_field(
+                            src_d_db_conn, table['schema'], table['table'], get_unique_field_name()
+                        )
+                        d = drop_table_field(
+                            dest_d_db_conn, table['schema'], table['table'], get_unique_field_name()
+                        )
+                        print(output_cli_result(s and d, compensation=12))
 
 
