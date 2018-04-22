@@ -135,7 +135,8 @@ def _setup_source(conn, pg_pass):
             result[db] = True
             print(output_cli_result(True, compensation=4))
     # see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication Sets for New Tables
-    output_cli_message("Add trigger to add all new tables pglogical replication on Source node name")
+    # and https://github.com/enova/pgl_ddl_deploy
+    output_cli_message("Add triggers to replicate DDL statements on Source node")
     print
     with indent(4, quote=' '):
         for db in get_cluster_databases(conn):
@@ -177,7 +178,8 @@ def _setup_destination(conn, pg_pass, source_setup_results):
             print(output_cli_result(result[db], compensation=4))
 
     # see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication Sets for New Tables
-    output_cli_message("Add trigger to add all new tables pglogical replication on Destination node name")
+    # and https://github.com/enova/pgl_ddl_deploy
+    output_cli_message("Add triggers to replicate DDL statements on Destination node")
     print
     with indent(4, quote=' '):
         for db in get_cluster_databases(conn):
