@@ -140,7 +140,7 @@ def _setup_source(conn, pg_pass):
     with indent(4, quote=' '):
         for db in get_cluster_databases(conn):
             output_cli_message(db)
-            if not setup_pgl_ddl_deploy(db):
+            if not setup_pgl_ddl_deploy(db, target='Source'):
                 print(output_cli_result(False, compensation=4))
                 continue
             print(output_cli_result(True, compensation=4))
@@ -175,6 +175,17 @@ def _setup_destination(conn, pg_pass, source_setup_results):
             output_cli_message(db)
             result[db] = create_pglogical_node(db)
             print(output_cli_result(result[db], compensation=4))
+
+    # see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication Sets for New Tables
+    output_cli_message("Add trigger to add all new tables pglogical replication on Destination node name")
+    print
+    with indent(4, quote=' '):
+        for db in get_cluster_databases(conn):
+            output_cli_message(db)
+            if not setup_pgl_ddl_deploy(db, target='Destination'):
+                print(output_cli_result(False, compensation=4))
+                continue
+            print(output_cli_result(True, compensation=4))
 
     for db in get_cluster_databases(conn):
         store_setup_result('Destination', db, result[db] and result['result'])

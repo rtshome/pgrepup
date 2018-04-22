@@ -115,7 +115,7 @@ def syncronize_sequences(db):
     c.execute("SELECT pglogical.synchronize_sequence( seqoid ) FROM pglogical.sequence_state")
 
 
-def setup_pgl_ddl_deploy(db):
+def setup_pgl_ddl_deploy(db, target):
     """
     Create a trigger on CREATE TABLE/SEQUENCE events in order to replicate them to the Destination Database
     see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication Sets for New Tables
@@ -123,38 +123,38 @@ def setup_pgl_ddl_deploy(db):
     :param db:
     :return: boolean
     """
-    for target in ['Source','Destination']:
-        db_conn = connect(target, db)
+    db_conn = connect(target, db)
+    try:
+        c = db_conn.cursor()
+        c.execute("BEGIN")
+        c.execute("CREATE EXTENSION IF NOT EXISTS pgl_ddl_deploy")
+        for user in [config().get('Source', 'user'), config().get('Security', 'app_owner')]:
+            if user != "":
+                c.execute("SELECT pgl_ddl_deploy.add_role(oid) FROM pg_roles WHERE rolname = %s;", (user,))
+                c.execute('GRANT CREATE ON DATABASE ' + db + ' TO ' + user)
+        db_conn.commit()
+    except:
+        db_conn.rollback()
+        return False
+
+    if target == 'Source':
         try:
             c = db_conn.cursor()
-            schemas = get_schemas(db_conn)
-            c.execute("CREATE EXTENSION IF NOT EXISTS pgl_ddl_deploy")
-            for user in [config().get('Source', 'user'), config().get('Security', 'app_owner')]:
-                if user!="":
-                    c.execute("SELECT pgl_ddl_deploy.add_role(oid) FROM pg_roles WHERE rolname = %s;", (user,))
-                    for schema in schemas:
-                        c.execute('GRANT CREATE ON DATABASE ' + schema + ' TO ' + user)
+            c.execute("BEGIN")
+            c.execute("""
+              INSERT INTO pgl_ddl_deploy.set_configs(set_name, include_schema_regex, lock_safe_deployment, allow_multi_statements)
+              VALUES ('default','.*', true, true)
+            """)
+            c.execute("""SELECT pgl_ddl_deploy.deploy(set_name) FROM pgl_ddl_deploy.set_configs""")
+            if c.fetchone()[0] == False:
+                db_conn.rollback()
+                return False
             db_conn.commit()
         except:
             db_conn.rollback()
             return False
 
-    try:
-        db_conn = connect('Source', db)
-
-        c = db_conn.cursor()
-        c.execute("""
-          INSERT INTO pgl_ddl_deploy.set_configs(set_name, include_schema_regex, lock_safe_deployment, allow_multi_statements)
-          VALUES ('default','.*', true, true)
-        """)
-        c.execute("""SELECT pgl_ddl_deploy.deploy(set_name) FROM pgl_ddl_deploy.set_configs""")
-        if c.fetchone()[0]==False:
-            return False
-        db_conn.commit()
-        return True
-    except:
-        db_conn.rollback()
-        return False
+    return True
 
 
 def create_replication_sets(db):
