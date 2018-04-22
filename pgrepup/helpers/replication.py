@@ -61,8 +61,10 @@ def stop_subscription(db):
     cur = db_conn.cursor()
     try:
         while True:
-            cur.execute("SELECT * FROM pglogical.drop_subscription(subscription_name := %s, ifexists := true)",
-                        ['subscription'])
+            cur.execute(
+                "SELECT * FROM pglogical.drop_subscription(subscription_name := %s, ifexists := true)",
+                ['subscription']
+            )
             if cur.fetchone()[0] == 0:
                 break
             sleep(1)
@@ -131,8 +133,8 @@ def setup_pgl_ddl_deploy(db, target):
         c.execute("CREATE EXTENSION IF NOT EXISTS pgl_ddl_deploy")
         for user in [config().get('Source', 'user'), config().get('Security', 'app_owner')]:
             if user != "":
-                c.execute("SELECT pgl_ddl_deploy.add_role(oid) FROM pg_roles WHERE rolname = %s;", (user,))
                 c.execute('GRANT CREATE ON DATABASE ' + db + ' TO ' + user)
+                c.execute("SELECT pgl_ddl_deploy.add_role(oid) FROM pg_roles WHERE rolname = %s;", (user,))
         db_conn.commit()
     except:
         db_conn.rollback()
@@ -147,11 +149,11 @@ def setup_pgl_ddl_deploy(db, target):
               VALUES ('default','.*', true, true)
             """)
             c.execute("""SELECT pgl_ddl_deploy.deploy(set_name) FROM pgl_ddl_deploy.set_configs""")
-            if c.fetchone()[0] == False:
-                db_conn.rollback()
-                return False
+            r = c.fetchone()
+            if r is None or len(r) < 1 or r[0] == False:
+                raise RuntimeError("pgl_ddl_deploy.deploy return %s" % r)
             db_conn.commit()
-        except:
+        except Exception as e:
             db_conn.rollback()
             return False
 
@@ -178,25 +180,36 @@ def create_replication_sets(db):
     try:
         db_schemas = get_schemas(db_conn)
         c = db_conn.cursor()
+        c.execute("BEGIN")
         c.execute("CREATE EXTENSION IF NOT EXISTS pglogical")
         c.execute("SELECT pglogical.drop_node(node_name := %s, ifexists := true)", ['Source'])
         c.execute(
             "SELECT pglogical.create_node(node_name := %s, dsn := %s )",
             ['Source', get_dsn_for_pglogical('Source', db_name=db)]
         )
+        r = c.fetchone()
+        if len(r)!=1 or r[0]==False:
+           raise RuntimeError("pglogical.create_node return %s" % r)
         c.execute(
             """SELECT pglogical.replication_set_add_all_tables(
                 set_name := 'default', schema_names := '{%s}'::text[], synchronize_data := true
             )""" % ','.join(db_schemas)
         )
+        r = c.fetchone()
+        if len(r)!=1 or r[0]==False:
+           raise RuntimeError("pglogical.replication_set_add_all_tables return %s" % r)
         c.execute(
             """SELECT pglogical.replication_set_add_all_sequences( 
                       set_name := 'default', schema_names := %s, synchronize_data := true
             )""",
         [db_schemas])
+        r = c.fetchone()
+        if len(r)!=1 or r[0]==False:
+           raise RuntimeError("pglogical.replication_set_add_all_sequences return %s" % r)
         db_conn.commit()
         return True
     except Exception as e:
+        print e
         db_conn.rollback()
         return False
 
@@ -220,14 +233,21 @@ def create_pglogical_node(db):
     try:
         c = db_conn.cursor()
         drop_extension(db_conn, "pglogical")
+        c.execute("BEGIN")
         c.execute("DROP SCHEMA IF EXISTS pglogical CASCADE")
-        c.execute("CREATE EXTENSION pglogical")
+        c.execute("DROP EXTENSION IF EXISTS pglogical")
+        c.execute("CREATE EXTENSION IF NOT EXISTS pglogical")
+
         c.execute("SELECT pglogical.drop_node(node_name := %s, ifexists := true)", ['Destination'])
         c.execute("SELECT pglogical.create_node( node_name := %s, dsn := %s );", [
             'Destination', get_dsn_for_pglogical('Destination', db)
         ])
+        r = c.fetchone()
+        if len(r)!=1 or r[0]==False:
+           raise RuntimeError("pglogical.create_node return %s" % r)
         db_conn.commit()
     except Exception as e:
+        print e
         db_conn.rollback()
         return False
 
