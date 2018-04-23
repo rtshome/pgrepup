@@ -1,4 +1,4 @@
-# Copyright (C) 2016 Denis Gasparin <denis@gasparin.net>
+# Copyright (C) 2016-2018 Denis Gasparin <denis@gasparin.net>
 #
 # This file is part of Pgrepup.
 #

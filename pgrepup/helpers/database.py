@@ -1,4 +1,4 @@
-# Copyright (C) 2016 Denis Gasparin <denis@gasparin.net>
+# Copyright (C) 2016-2018 Denis Gasparin <denis@gasparin.net>
 #
 # This file is part of Pgrepup.
 #
@@ -118,7 +118,7 @@ def drop_extension(conn, extension_name):
         cur.execute("DROP EXTENSION IF EXISTS %s CASCADE" % extension_name)
         cur.execute("DROP SCHEMA IF EXISTS pglogical CASCADE")
         conn.commit()
-    except psycopg2.Error as e:
+    except psycopg2.Error:
         conn.rollback()
     return True
 
@@ -142,12 +142,12 @@ def get_pg_hba_contents(conn):
         cur = conn.cursor()
         cur.execute("CREATE TEMP TABLE " + temp_table + " (content text)")
         cur.execute("COPY " + temp_table + " FROM %s", [pg_hba_path])
-        cur.execute("SELECT * FROM " + temp_table +";")
+        cur.execute("SELECT * FROM " + temp_table + ";")
         rows = cur.fetchall()
         conn.rollback()
         return rows
     except psycopg2.Error as e:
-        print e
+        print(e)
         return None
 
 
@@ -185,7 +185,7 @@ def create_user(conn, username, password):
         conn.commit()
         return True
     except psycopg2.Error as e:
-        print e
+        print(e)
         conn.rollback()
         return False
 
@@ -201,10 +201,9 @@ def drop_user(conn, username):
         conn.commit()
         return True
     except psycopg2.Error as e:
-        print e
+        print(e)
         conn.rollback()
         return False
-
 
 
 def create_pgpass_file():
@@ -217,7 +216,7 @@ def create_pgpass_file():
         "%(host)s:%(port)s:*:%(user)s:%(password)s\n" % get_connection_params('Destination')
     ))
     pgpass.close()
-    os.chmod(fname, 0600)
+    os.chmod(fname, 0o600)
     return fname
 
 
@@ -279,7 +278,9 @@ def get_unique_field_name():
 def add_table_unique_index(db_conn, schema, table):
     try:
         c = db_conn.cursor()
-        c.execute("ALTER TABLE %s.%s ADD COLUMN %s BIGSERIAL NOT NULL PRIMARY KEY" % (schema, table, get_unique_field_name()))
+        c.execute("ALTER TABLE %s.%s ADD COLUMN %s BIGSERIAL NOT NULL PRIMARY KEY" %
+                  (schema, table, get_unique_field_name())
+                  )
         db_conn.commit()
         return True
     except psycopg2.Error:

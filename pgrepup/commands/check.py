@@ -1,4 +1,4 @@
-# Copyright (C) 2016 Denis Gasparin <denis@gasparin.net>
+# Copyright (C) 2016-2018 Denis Gasparin <denis@gasparin.net>
 #
 # This file is part of Pgrepup.
 #
@@ -17,6 +17,7 @@
 import re
 import subprocess
 import semver
+from clint.textui import indent
 from ..helpers.docopt_dispatch import dispatch
 from ..helpers.operation_target import get_target
 from ..helpers.database import *
@@ -300,7 +301,7 @@ def checks(target, single_test=None, db_conn=None):
                 continue
             db_version = db_version_rule.match(db_version).group(1)
 
-            if db_version.count('.')<2:
+            if db_version.count('.') < 2:
                 db_version += '.0'
 
             pg_dumpall_exists = os.system("which pg_dumpall >/dev/null") == 0
@@ -318,7 +319,7 @@ def checks(target, single_test=None, db_conn=None):
                 checks_result[c] = False
                 continue
             pg_dumpall_version = pg_dumpall_version.group(1)
-            if pg_dumpall_version.count('.')<2:
+            if pg_dumpall_version.count('.') < 2:
                 pg_dumpall_version += '.0'
             if semver.match(pg_dumpall_version, "<" + db_version):
                 checks_result[c] = False
@@ -333,7 +334,7 @@ def checks(target, single_test=None, db_conn=None):
             tmp_folder = os.path.expanduser(config().get('Security', 'tmp_folder'))
             if not os.path.isdir(tmp_folder):
                 try:
-                    os.makedirs(tmp_folder, 0700)
+                    os.makedirs(tmp_folder, 0o700)
                 except os.error:
                     checks_result[c] = False
                     continue

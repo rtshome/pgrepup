@@ -1,4 +1,4 @@
-# Copyright (C) 2016 Denis Gasparin <denis@gasparin.net>
+# Copyright (C) 2016-2018 Denis Gasparin <denis@gasparin.net>
 #
 # This file is part of Pgrepup.
 #
@@ -14,14 +14,14 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Pgrepup. If not, see <http://www.gnu.org/licenses/>.
-from clint.textui import colored
+from clint.textui import indent
 from ..helpers.replication import *
 from ..helpers.docopt_dispatch import dispatch
 from ..helpers.ui import *
 
 
 @dispatch.on('stop')
-def stop(**kwargs):
+def stop():
 
     # Shortcut to ask master password before output Configuration message
     decrypt(config().get('Source', 'password'))

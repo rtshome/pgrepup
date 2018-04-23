@@ -1,4 +1,4 @@
-# Copyright (C) 2016 Denis Gasparin <denis@gasparin.net>
+# Copyright (C) 2016-2018 Denis Gasparin <denis@gasparin.net>
 #
 # This file is part of Pgrepup.
 #
@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Pgrepup. If not, see <http://www.gnu.org/licenses/>.
 import sys
-from clint.textui import puts, prompt, colored, indent, progress
+from clint.textui import puts, colored
 
 
 this = sys.modules[__name__]
@@ -42,4 +42,4 @@ def output_cli_result(result, compensation=0):
 
 
 def output_hint(hint):
-    print "    " + colored.yellow("Hint: " + hint)
+    print("    " + colored.yellow("Hint: " + hint))

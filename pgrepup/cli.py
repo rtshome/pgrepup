@@ -1,4 +1,4 @@
-# Copyright (C) 2016 Denis Gasparin <denis@gasparin.net>
+# Copyright (C) 2016-2018 Denis Gasparin <denis@gasparin.net>
 #
 # This file is part of Pgrepup.
 #
@@ -52,10 +52,9 @@ Quick start:
     pgrepup start
 
 """
-from version import __version__
-from clint.textui import puts, colored
-import commands
-from helpers.docopt_dispatch import dispatch
+from .version import __version__
+from .helpers.docopt_dispatch import dispatch
+from .commands import *
 from clint.textui import puts, colored
 
 

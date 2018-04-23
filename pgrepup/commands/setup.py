@@ -1,4 +1,4 @@
-# Copyright (C) 2016 Denis Gasparin <denis@gasparin.net>
+# Copyright (C) 2016-2018 Denis Gasparin <denis@gasparin.net>
 #
 # This file is part of Pgrepup.
 #
@@ -14,16 +14,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Pgrepup. If not, see <http://www.gnu.org/licenses/>.
+from clint.textui import indent
 from ..helpers.docopt_dispatch import dispatch
 from ..helpers.replication import *
 from ..helpers.utils import merge_two_dicts
 from ..config import get_tmp_folder
 from ..helpers.ui import *
-from check import checks
+from .check import checks
 
 
 @dispatch.on('setup')
-def setup(**kwargs):
+def setup():
 
     result = True
     if check_destination_subscriptions():
@@ -32,7 +33,7 @@ def setup(**kwargs):
     output_cli_message("Check if there are active subscriptions in Destination nodes")
     print(output_cli_result(result, compensation=-4))
     if not result:
-        print "    " + colored.yellow("Hint: use pgrepup stop to terminate the subscriptions")
+        print("    " + colored.yellow("Hint: use pgrepup stop to terminate the subscriptions"))
         sys.exit(1)
 
     targets = ['Source', 'Destination']
@@ -76,7 +77,7 @@ def setup(**kwargs):
             with indent(4, quote=' >'):
                 if t == 'Source':
                     source_setup_results = _setup_source(results['data']['conn'], pg_pass)
-                    if isinstance(source_setup_results, dict) and source_setup_results.has_key('pg_dumpall'):
+                    if isinstance(source_setup_results, dict) and 'pg_dumpall' in source_setup_results:
                         files_to_clean.append(source_setup_results['pg_dumpall'])
                 else:
                     _setup_destination(
@@ -112,7 +113,8 @@ def _setup_source(conn, pg_pass):
     pg_dumpall_schema = "%s/pg_dumpall_schema_%s.sql" % (get_tmp_folder(), uuid.uuid4().hex)
     output_cli_message("Dump globals and schema of all databases")
     pg_dumpall_schema_result = \
-        os.system('sh -c "PGPASSFILE=%(pgpass)s pg_dumpall -U %(user)s -h %(host)s -p%(port)s -s -f %(fname)s --if-exists -c"' %
+        os.system('sh -c "PGPASSFILE=%(pgpass)s pg_dumpall -U %(user)s -h %(host)s -p%(port)s -s -f %(fname)s ' +
+                  '--if-exists -c"' %
                   merge_two_dicts(
                       get_connection_params('Source'),
                       {"fname": pg_dumpall_schema, "pgpass": pg_pass}
@@ -134,7 +136,8 @@ def _setup_source(conn, pg_pass):
                 continue
             result[db] = True
             print(output_cli_result(True, compensation=4))
-    # see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication Sets for New Tables
+    # see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1
+    # Automatic Assignment of Replication Sets for New Tables
     # and https://github.com/enova/pgl_ddl_deploy
     output_cli_message("Add triggers to replicate DDL statements on Source node")
     print
@@ -154,10 +157,11 @@ def _setup_source(conn, pg_pass):
 def _setup_destination(conn, pg_pass, source_setup_results):
     result = {'result': True}
     output_cli_message("Create and import source globals and schema")
-    if source_setup_results.has_key('pg_dumpall'):
+    if 'pg_dumpall' in source_setup_results:
         restore_schema_result = \
             os.system(
-                'sh -c "PGPASSFILE=%(pgpass)s psql -U %(user)s -h %(host)s -p%(port)s -f %(fname)s -d postgres >/dev/null 2>&1"'
+                'sh -c "PGPASSFILE=%(pgpass)s psql -U %(user)s -h %(host)s -p%(port)s -f %(fname)s -d postgres ' +
+                '>/dev/null 2>&1"'
                 % merge_two_dicts(
                     get_connection_params('Destination'),
                     {"fname": source_setup_results['pg_dumpall'], "pgpass": pg_pass}
@@ -177,7 +181,8 @@ def _setup_destination(conn, pg_pass, source_setup_results):
             result[db] = create_pglogical_node(db)
             print(output_cli_result(result[db], compensation=4))
 
-    # see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication Sets for New Tables
+    # see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1
+    # Automatic Assignment of Replication Sets for New Tables
     # and https://github.com/enova/pgl_ddl_deploy
     output_cli_message("Add triggers to replicate DDL statements on Destination node")
     print

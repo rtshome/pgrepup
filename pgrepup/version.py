@@ -1,4 +1,4 @@
-# Copyright (C) 2016 Denis Gasparin <denis@gasparin.net>
+# Copyright (C) 2016-2018 Denis Gasparin <denis@gasparin.net>
 #
 # This file is part of Pgrepup.
 #
@@ -19,4 +19,4 @@
 This module contains the current Pgrepup version.
 """
 
-__version__ = '0.3.8'
+__version__ = '0.3.10'

@@ -1,4 +1,4 @@
-# Copyright (C) 2016 Denis Gasparin <denis@gasparin.net>
+# Copyright (C) 2016-2018 Denis Gasparin <denis@gasparin.net>
 #
 # This file is part of Pgrepup.
 #
@@ -54,7 +54,6 @@ def get_tmp_folder():
     return os.path.expanduser(this.config.get('Security', 'tmp_folder'))
 
 
-
 def save(filename=None, print_save_result=True):
     if filename is None and this.filename is None:
         raise ConfigFileNotFound("Missing config file to write to")
@@ -65,8 +64,8 @@ def save(filename=None, print_save_result=True):
     cfg_file = open(filename, 'w')
     this.config.write(cfg_file)
     cfg_file.close()
-    os.chmod(filename, 0600)
+    os.chmod(filename, 0o600)
 
     if print_save_result:
-        print "Configuration saved to %s." % filename
-        print "You can now use the check command to verify setup of source and destination databases"
+        print("Configuration saved to %s." % filename)
+        print("You can now use the check command to verify setup of source and destination databases")

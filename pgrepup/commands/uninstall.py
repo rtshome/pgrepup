@@ -1,4 +1,4 @@
-# Copyright (C) 2016 Denis Gasparin <denis@gasparin.net>
+# Copyright (C) 2016-2018 Denis Gasparin <denis@gasparin.net>
 #
 # This file is part of Pgrepup.
 #
@@ -14,14 +14,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Pgrepup. If not, see <http://www.gnu.org/licenses/>.
+from clint.textui import indent
 from ..helpers.replication import *
 from ..helpers.docopt_dispatch import dispatch
 from ..helpers.ui import *
-from stop import stop
+from .stop import stop
 
 
 @dispatch.on('uninstall')
-def uninstall(**kwargs):
+def uninstall():
     stop()
 
     output_cli_message("Uninstall operations", color='cyan')
@@ -47,7 +48,6 @@ def uninstall(**kwargs):
                             print(output_cli_result(False, compensation=8))
                             continue
                         print(output_cli_result(True, compensation=8))
-
 
         output_cli_message("Drop pg_logical extension in all databases")
         print

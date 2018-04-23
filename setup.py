@@ -35,7 +35,7 @@ if sys.version_info < (2, 6):
     raise SystemExit('ERROR: Pgrepup needs at least python 2.6 to work')
 
 install_requires = [
-    'psycopg2 >= 2.4.2',
+    'psycopg2-binary >= 2.4.2',
     'docopt >= 0.6.0',
     'python-dateutil',
     'clint >= 0.5.1',

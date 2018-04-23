@@ -1,4 +1,4 @@
-# Copyright (C) 2016 Denis Gasparin <denis@gasparin.net>
+# Copyright (C) 2016-2018 Denis Gasparin <denis@gasparin.net>
 #
 # This file is part of Pgrepup.
 #
@@ -15,10 +15,11 @@
 # You should have received a copy of the GNU General Public License
 # along with Pgrepup. If not, see <http://www.gnu.org/licenses/>.
 import re
-from database import *
+from .database import *
 from time import sleep
 from psycopg2 import Error
 from psycopg2 import extras
+
 
 def check_destination_subscriptions():
     """Return True if there are active subscriptions in destination database"""
@@ -68,7 +69,7 @@ def stop_subscription(db):
             if cur.fetchone()[0] == 0:
                 break
             sleep(1)
-    except Error as e:
+    except Error:
         return False
     return True
 
@@ -106,7 +107,7 @@ def start_subscription(db):
             [get_dsn_for_pglogical('Source', db)]
         )
         return True
-    except Error as e:
+    except Error:
         return False
 
 
@@ -120,10 +121,11 @@ def syncronize_sequences(db):
 def setup_pgl_ddl_deploy(db, target):
     """
     Create a trigger on CREATE TABLE/SEQUENCE events in order to replicate them to the Destination Database
-    see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication Sets for New Tables
-    and https://github.com/enova/pgl_ddl_deploy
+    see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication
+    Sets for New Tables and https://github.com/enova/pgl_ddl_deploy
 
     :param db:
+    :param target:
     :return: boolean
     """
     db_conn = connect(target, db)
@@ -145,19 +147,21 @@ def setup_pgl_ddl_deploy(db, target):
             c = db_conn.cursor()
             c.execute("BEGIN")
             c.execute("""
-              INSERT INTO pgl_ddl_deploy.set_configs(set_name, include_schema_regex, lock_safe_deployment, allow_multi_statements)
+              INSERT INTO pgl_ddl_deploy.set_configs
+                (set_name, include_schema_regex, lock_safe_deployment, allow_multi_statements)
               VALUES ('default','.*', true, true)
             """)
             c.execute("""SELECT pgl_ddl_deploy.deploy(set_name) FROM pgl_ddl_deploy.set_configs""")
             r = c.fetchone()
-            if r is None or len(r) < 1 or r[0] == False:
+            if r is None or len(r) < 1 or not r[0]:
                 raise RuntimeError("pgl_ddl_deploy.deploy return %s" % r)
             db_conn.commit()
-        except Exception as e:
+        except Exception:
             db_conn.rollback()
             return False
 
     return True
+
 
 def clean_pgl_ddl_deploy(target, db):
     db_conn = connect(target, db)
@@ -188,28 +192,29 @@ def create_replication_sets(db):
             ['Source', get_dsn_for_pglogical('Source', db_name=db)]
         )
         r = c.fetchone()
-        if len(r)!=1 or r[0]==False:
-           raise RuntimeError("pglogical.create_node return %s" % r)
+        if len(r) != 1 or not r[0]:
+            raise RuntimeError("pglogical.create_node return %s" % r)
         c.execute(
             """SELECT pglogical.replication_set_add_all_tables(
                 set_name := 'default', schema_names := '{%s}'::text[], synchronize_data := true
             )""" % ','.join(db_schemas)
         )
         r = c.fetchone()
-        if len(r)!=1 or r[0]==False:
-           raise RuntimeError("pglogical.replication_set_add_all_tables return %s" % r)
+        if len(r) != 1 or not r[0]:
+            raise RuntimeError("pglogical.replication_set_add_all_tables return %s" % r)
         c.execute(
             """SELECT pglogical.replication_set_add_all_sequences( 
                       set_name := 'default', schema_names := %s, synchronize_data := true
             )""",
-        [db_schemas])
+            [db_schemas]
+        )
         r = c.fetchone()
-        if len(r)!=1 or r[0]==False:
-           raise RuntimeError("pglogical.replication_set_add_all_sequences return %s" % r)
+        if len(r) != 1 or not r[0]:
+            raise RuntimeError("pglogical.replication_set_add_all_sequences return %s" % r)
         db_conn.commit()
         return True
     except Exception as e:
-        print e
+        print(e)
         db_conn.rollback()
         return False
 
@@ -228,7 +233,7 @@ def clean_pglogical_setup(target, db):
 def create_pglogical_node(db):
     db_conn = connect('Destination', db)
     if not db_conn:
-        return False;
+        return False
 
     try:
         drop_extension(db_conn, "pglogical")
@@ -240,11 +245,11 @@ def create_pglogical_node(db):
             'Destination', get_dsn_for_pglogical('Destination', db)
         ])
         r = c.fetchone()
-        if len(r)!=1 or r[0]==False:
-           raise RuntimeError("pglogical.create_node return %s" % r)
+        if len(r) != 1 or not r[0]:
+            raise RuntimeError("pglogical.create_node return %s" % r)
         db_conn.commit()
     except Exception as e:
-        print e
+        print(e)
         db_conn.rollback()
         return False
 
@@ -299,10 +304,11 @@ def get_replication_status(db):
             result["status"] = r['status']
 
     except (psycopg2.InternalError, psycopg2.OperationalError, psycopg2.ProgrammingError) as e:
-        print e
+        print(e)
         result["result"] = False
 
     return result
+
 
 def get_replication_delay():
     db_conn = connect('Destination')
@@ -314,7 +320,7 @@ def get_replication_delay():
     d_lsn_r = dest_cur.fetchone()
     if d_lsn_r:
         src_db_version = get_postgresql_version(src_db_conn)
-        if re.match('^10',src_db_version):
+        if re.match('^10', src_db_version):
             src_cur.execute("SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), %s)", [d_lsn_r[0]])
         else:
             src_cur.execute("SELECT pg_xlog_location_diff(pg_current_xlog_location(), %s)", [d_lsn_r[0]])
