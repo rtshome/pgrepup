@@ -39,7 +39,8 @@ install_requires = [
     'docopt >= 0.6.0',
     'python-dateutil',
     'clint >= 0.5.1',
-    'cryptography'
+    'cryptography',
+    'semver',
 ]
 
 if sys.version_info < (2, 7):

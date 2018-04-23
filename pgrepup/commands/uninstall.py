@@ -34,6 +34,20 @@ def uninstall(**kwargs):
                 output_cli_message(db)
                 drop_node(db)
                 print(output_cli_result(True, 4))
+        output_cli_message("Drop pgl_ddl_deploy extension in all databases")
+        print
+        with indent(4, quote=' '):
+            for t in ['Source', 'Destination']:
+                output_cli_message(t)
+                print
+                with indent(4, quote=' '):
+                    for db in get_cluster_databases(connect(t)):
+                        output_cli_message(db)
+                        if not clean_pgl_ddl_deploy(t, db):
+                            print(output_cli_result(False, compensation=8))
+                            continue
+                        print(output_cli_result(True, compensation=8))
+
 
         output_cli_message("Drop pg_logical extension in all databases")
         print
@@ -54,22 +68,22 @@ def uninstall(**kwargs):
 
         output_cli_message("Drop unique fields added by fix command")
         print
-        with indent(4, quote=' '):
+        with indent(8, quote=' '):
             src_db_conn = connect('Source')
-            dest_db_conn = connect('Destination')
-            with indent(4, quote=' '):
-                for db in get_cluster_databases(src_db_conn):
-                    output_cli_message(db)
-                    print
-                    src_d_db_conn = connect('Source', db_name=db)
-                    dest_d_db_conn = connect('Destination', db_name=db)
-                    with indent(4, quote=' '):
-                        for table in get_database_tables(src_d_db_conn):
-                            output_cli_message("%s.%s" % (table['schema'], table['table']))
-                            s = drop_table_field(src_d_db_conn,
-                                                 table['schema'], table['table'], get_unique_field_name())
-                            d = drop_table_field(dest_d_db_conn,
-                                                 table['schema'], table['table'], get_unique_field_name())
-                            print(output_cli_result(s and d, compensation=12))
+            for db in get_cluster_databases(src_db_conn):
+                output_cli_message(db)
+                print
+                src_d_db_conn = connect('Source', db_name=db)
+                dest_d_db_conn = connect('Destination', db_name=db)
+                with indent(4, quote=' '):
+                    for table in get_database_tables(src_d_db_conn):
+                        output_cli_message("%s.%s" % (table['schema'], table['table']))
+                        s = drop_table_field(
+                            src_d_db_conn, table['schema'], table['table'], get_unique_field_name()
+                        )
+                        d = drop_table_field(
+                            dest_d_db_conn, table['schema'], table['table'], get_unique_field_name()
+                        )
+                        print(output_cli_result(s and d, compensation=12))
 
 

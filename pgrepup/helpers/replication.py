@@ -14,6 +14,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Pgrepup. If not, see <http://www.gnu.org/licenses/>.
+import re
 from database import *
 from time import sleep
 from psycopg2 import Error
@@ -60,8 +61,10 @@ def stop_subscription(db):
     cur = db_conn.cursor()
     try:
         while True:
-            cur.execute("SELECT * FROM pglogical.drop_subscription(subscription_name := %s, ifexists := false)",
-                        ['subscription'])
+            cur.execute(
+                "SELECT * FROM pglogical.drop_subscription(subscription_name := %s, ifexists := true)",
+                ['subscription']
+            )
             if cur.fetchone()[0] == 0:
                 break
             sleep(1)
@@ -78,7 +81,7 @@ def drop_node(db):
     cur = db_conn.cursor()
     while True:
         try:
-            cur.execute("SELECT * FROM pglogical.drop_node(node_name := 'Destination', ifexists := false);")
+            cur.execute("SELECT * FROM pglogical.drop_node(node_name := 'Destination', ifexists := true);")
         except psycopg2.ProgrammingError:
             break
         if not cur.fetchone()[0]:
@@ -95,8 +98,9 @@ def start_subscription(db):
             """
             SELECT pglogical.create_subscription(
                                     subscription_name := 'subscription',
-                                    provider_dsn := %s,
-                                    replication_sets := '{default}'::text[]
+                                    synchronize_structure := false,
+                                    synchronize_data := true,
+                                    provider_dsn := %s
             );
             """,
             [get_dsn_for_pglogical('Source', db)]
@@ -113,48 +117,59 @@ def syncronize_sequences(db):
     c.execute("SELECT pglogical.synchronize_sequence( seqoid ) FROM pglogical.sequence_state")
 
 
-def setup_ddl_syncronization(db):
+def setup_pgl_ddl_deploy(db, target):
     """
     Create a trigger on CREATE TABLE/SEQUENCE events in order to replicate them to the Destination Database
+    see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication Sets for New Tables
+    and https://github.com/enova/pgl_ddl_deploy
 
     :param db:
     :return: boolean
     """
-    db_conn = connect('Source', db)
+    db_conn = connect(target, db)
     try:
-        schemas = get_schemas(db_conn)
-
         c = db_conn.cursor()
-        c.execute("DROP event trigger IF EXISTS trg_pgrepup_replicate_ddl;")
-        c.execute("""
-CREATE OR REPLACE FUNCTION pgrepup_replicate_ddl()
-RETURNS event_trigger AS $$
-DECLARE obj record;
-BEGIN
-    FOR obj IN SELECT * FROM pg_event_trigger_ddl_commands() where command_tag in ('CREATE TABLE', 'CREATE TABLE AS', 'CREATE SEQUENCE')
-    LOOP
-        IF obj.schema_name = ANY(%s) AND NOT obj.in_extension THEN
-            IF obj.object_type = 'table' THEN
-                PERFORM pglogical.replication_set_add_table('default', obj.objid);
-            ELSIF obj.object_type = 'sequence' THEN
-                PERFORM pglogical.replication_set_add_sequence('default', obj.objid);
-            END IF;
-        END IF;
-    END LOOP;
-END;
-$$ LANGUAGE plpgsql;
-        """, [schemas])
-
-        c.execute("""
-CREATE EVENT TRIGGER trg_pgrepup_replicate_ddl ON ddl_command_end
-WHEN TAG IN ('CREATE TABLE', 'CREATE TABLE AS', 'CREATE SEQUENCE') EXECUTE PROCEDURE pgrepup_replicate_ddl();
-        """)
-
+        c.execute("BEGIN")
+        c.execute("CREATE EXTENSION IF NOT EXISTS pgl_ddl_deploy")
+        for user in [config().get('Source', 'user'), config().get('Security', 'app_owner')]:
+            if user != "":
+                c.execute('GRANT CREATE ON DATABASE ' + db + ' TO ' + user)
+                c.execute("SELECT pgl_ddl_deploy.add_role(oid) FROM pg_roles WHERE rolname = %s;", (user,))
         db_conn.commit()
-        return True
     except:
         db_conn.rollback()
         return False
+
+    if target == 'Source':
+        try:
+            c = db_conn.cursor()
+            c.execute("BEGIN")
+            c.execute("""
+              INSERT INTO pgl_ddl_deploy.set_configs(set_name, include_schema_regex, lock_safe_deployment, allow_multi_statements)
+              VALUES ('default','.*', true, true)
+            """)
+            c.execute("""SELECT pgl_ddl_deploy.deploy(set_name) FROM pgl_ddl_deploy.set_configs""")
+            r = c.fetchone()
+            if r is None or len(r) < 1 or r[0] == False:
+                raise RuntimeError("pgl_ddl_deploy.deploy return %s" % r)
+            db_conn.commit()
+        except Exception as e:
+            db_conn.rollback()
+            return False
+
+    return True
+
+def clean_pgl_ddl_deploy(target, db):
+    db_conn = connect(target, db)
+    db_conn.autocommit = True
+    c = db_conn.cursor()
+    c.execute("SELECT pgl_ddl_deploy.undeploy(set_name) FROM pgl_ddl_deploy.set_configs")
+    if not db_conn:
+        return False
+    if not drop_extension(db_conn, "pgl_ddl_deploy"):
+        return False
+
+    return True
 
 
 def create_replication_sets(db):
@@ -165,16 +180,36 @@ def create_replication_sets(db):
     try:
         db_schemas = get_schemas(db_conn)
         c = db_conn.cursor()
-        c.execute("CREATE EXTENSION pglogical")
-        c.execute("SELECT pglogical.drop_node(node_name := %s, ifexists := false)", ['Source'])
-        c.execute("SELECT pglogical.create_node(node_name := %s, dsn := %s );",
-                  ['Source', get_dsn_for_pglogical('Source', db_name=db)])
-        c.execute("SELECT pglogical.replication_set_add_all_tables('default', '{%s}'::text[]);" % ','.join(db_schemas))
-        c.execute("SELECT pglogical.replication_set_add_all_sequences( set_name := 'default', schema_names := %s)",
-                  [db_schemas])
+        c.execute("BEGIN")
+        c.execute("CREATE EXTENSION IF NOT EXISTS pglogical")
+        c.execute("SELECT pglogical.drop_node(node_name := %s, ifexists := true)", ['Source'])
+        c.execute(
+            "SELECT pglogical.create_node(node_name := %s, dsn := %s )",
+            ['Source', get_dsn_for_pglogical('Source', db_name=db)]
+        )
+        r = c.fetchone()
+        if len(r)!=1 or r[0]==False:
+           raise RuntimeError("pglogical.create_node return %s" % r)
+        c.execute(
+            """SELECT pglogical.replication_set_add_all_tables(
+                set_name := 'default', schema_names := '{%s}'::text[], synchronize_data := true
+            )""" % ','.join(db_schemas)
+        )
+        r = c.fetchone()
+        if len(r)!=1 or r[0]==False:
+           raise RuntimeError("pglogical.replication_set_add_all_tables return %s" % r)
+        c.execute(
+            """SELECT pglogical.replication_set_add_all_sequences( 
+                      set_name := 'default', schema_names := %s, synchronize_data := true
+            )""",
+        [db_schemas])
+        r = c.fetchone()
+        if len(r)!=1 or r[0]==False:
+           raise RuntimeError("pglogical.replication_set_add_all_sequences return %s" % r)
         db_conn.commit()
         return True
-    except:
+    except Exception as e:
+        print e
         db_conn.rollback()
         return False
 
@@ -187,10 +222,6 @@ def clean_pglogical_setup(target, db):
     if not drop_extension(db_conn, "pglogical"):
         return False
 
-    c = db_conn.cursor()
-    c.execute("DROP event trigger IF EXISTS trg_pgrepup_replicate_ddl;")
-    c.execute("DROP FUNCTION IF EXISTS pgrepup_replicate_ddl()")
-
     return True
 
 
@@ -200,16 +231,20 @@ def create_pglogical_node(db):
         return False;
 
     try:
-        c = db_conn.cursor()
         drop_extension(db_conn, "pglogical")
-        c.execute("DROP SCHEMA IF EXISTS pglogical CASCADE")
-        c.execute("CREATE EXTENSION pglogical")
-        c.execute("SELECT pglogical.drop_node(node_name := %s, ifexists := false)", ['Destination'])
+        c = db_conn.cursor()
+        c.execute("CREATE EXTENSION IF NOT EXISTS pglogical")
+
+        c.execute("SELECT pglogical.drop_node(node_name := %s, ifexists := true)", ['Destination'])
         c.execute("SELECT pglogical.create_node( node_name := %s, dsn := %s );", [
             'Destination', get_dsn_for_pglogical('Destination', db)
         ])
+        r = c.fetchone()
+        if len(r)!=1 or r[0]==False:
+           raise RuntimeError("pglogical.create_node return %s" % r)
         db_conn.commit()
-    except Error:
+    except Exception as e:
+        print e
         db_conn.rollback()
         return False
 
@@ -247,14 +282,13 @@ def get_setup_result(target, db):
             return False
         return r[0]
 
-    except Error:
+    except Exception:
         return False
 
 
 def get_replication_status(db):
     result = {"result": False, "status": None}
     db_conn = connect('Destination', db_name=db)
-    src_db_conn = connect('Source', db_name=db)
     result["result"] = False
     try:
         cur = db_conn.cursor(cursor_factory=extras.DictCursor)
@@ -264,15 +298,11 @@ def get_replication_status(db):
             result["result"] = True
             result["status"] = r['status']
 
-    except psycopg2.InternalError:
-        result["result"] = False
-    except psycopg2.OperationalError:
-        result["result"] = False
-    except psycopg2.ProgrammingError:
+    except (psycopg2.InternalError, psycopg2.OperationalError, psycopg2.ProgrammingError) as e:
+        print e
         result["result"] = False
 
     return result
-
 
 def get_replication_delay():
     db_conn = connect('Destination')
@@ -283,7 +313,11 @@ def get_replication_delay():
     dest_cur.execute("SELECT remote_lsn FROM pg_replication_origin_status ORDER BY remote_lsn DESC limit 1;")
     d_lsn_r = dest_cur.fetchone()
     if d_lsn_r:
-        src_cur.execute("SELECT pg_xlog_location_diff(pg_current_xlog_location(), %s)", [d_lsn_r[0]])
+        src_db_version = get_postgresql_version(src_db_conn)
+        if re.match('^10',src_db_version):
+            src_cur.execute("SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), %s)", [d_lsn_r[0]])
+        else:
+            src_cur.execute("SELECT pg_xlog_location_diff(pg_current_xlog_location(), %s)", [d_lsn_r[0]])
         diff = src_cur.fetchone()
         return diff
     else:

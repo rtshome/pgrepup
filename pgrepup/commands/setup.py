@@ -112,7 +112,7 @@ def _setup_source(conn, pg_pass):
     pg_dumpall_schema = "%s/pg_dumpall_schema_%s.sql" % (get_tmp_folder(), uuid.uuid4().hex)
     output_cli_message("Dump globals and schema of all databases")
     pg_dumpall_schema_result = \
-        os.system("PGPASSFILE=%(pgpass)s pg_dumpall -U %(user)s -h %(host)s -p%(port)s -s -f %(fname)s --if-exists -c" %
+        os.system('sh -c "PGPASSFILE=%(pgpass)s pg_dumpall -U %(user)s -h %(host)s -p%(port)s -s -f %(fname)s --if-exists -c"' %
                   merge_two_dicts(
                       get_connection_params('Source'),
                       {"fname": pg_dumpall_schema, "pgpass": pg_pass}
@@ -134,16 +134,17 @@ def _setup_source(conn, pg_pass):
                 continue
             result[db] = True
             print(output_cli_result(True, compensation=4))
-
-    # output_cli_message("Setup pglogical ddl replication on Source node name")
-    # print
-    # with indent(4, quote=' '):
-    #     for db in get_cluster_databases(conn):
-    #         output_cli_message(db)
-    #         if not setup_ddl_syncronization(db):
-    #             print(output_cli_result(False, compensation=4))
-    #             continue
-    #         print(output_cli_result(True, compensation=4))
+    # see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication Sets for New Tables
+    # and https://github.com/enova/pgl_ddl_deploy
+    output_cli_message("Add triggers to replicate DDL statements on Source node")
+    print
+    with indent(4, quote=' '):
+        for db in get_cluster_databases(conn):
+            output_cli_message(db)
+            if not setup_pgl_ddl_deploy(db, target='Source'):
+                print(output_cli_result(False, compensation=4))
+                continue
+            print(output_cli_result(True, compensation=4))
 
     for db in get_cluster_databases(conn):
         store_setup_result('Source', db, result[db] and result['result'])
@@ -156,7 +157,7 @@ def _setup_destination(conn, pg_pass, source_setup_results):
     if source_setup_results.has_key('pg_dumpall'):
         restore_schema_result = \
             os.system(
-                "PGPASSFILE=%(pgpass)s psql -U %(user)s -h %(host)s -p%(port)s -f %(fname)s -d postgres >/dev/null 2>&1"
+                'sh -c "PGPASSFILE=%(pgpass)s psql -U %(user)s -h %(host)s -p%(port)s -f %(fname)s -d postgres >/dev/null 2>&1"'
                 % merge_two_dicts(
                     get_connection_params('Destination'),
                     {"fname": source_setup_results['pg_dumpall'], "pgpass": pg_pass}
@@ -175,6 +176,18 @@ def _setup_destination(conn, pg_pass, source_setup_results):
             output_cli_message(db)
             result[db] = create_pglogical_node(db)
             print(output_cli_result(result[db], compensation=4))
+
+    # see https://www.2ndquadrant.com/en/resources/pglogical/pglogical-docs/ 2.4.1 Automatic Assignment of Replication Sets for New Tables
+    # and https://github.com/enova/pgl_ddl_deploy
+    output_cli_message("Add triggers to replicate DDL statements on Destination node")
+    print
+    with indent(4, quote=' '):
+        for db in get_cluster_databases(conn):
+            output_cli_message(db)
+            if not setup_pgl_ddl_deploy(db, target='Destination'):
+                print(output_cli_result(False, compensation=4))
+                continue
+            print(output_cli_result(True, compensation=4))
 
     for db in get_cluster_databases(conn):
         store_setup_result('Destination', db, result[db] and result['result'])

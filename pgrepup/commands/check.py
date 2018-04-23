@@ -16,6 +16,7 @@
 # along with Pgrepup. If not, see <http://www.gnu.org/licenses/>.
 import re
 import subprocess
+import semver
 from ..helpers.docopt_dispatch import dispatch
 from ..helpers.operation_target import get_target
 from ..helpers.database import *
@@ -70,6 +71,18 @@ def check(**kwargs):
                 output_hint("Add pglogical.so to shared_preload_libraries in postgresql.conf")
             else:
                 print(output_cli_result(c['results']['pglogical_installed']))
+
+            output_cli_message("pg_ddl_deploy installation")
+            c = checks(t, 'pg_ddl_deploy_installed', db_conn=conn)
+            if c['results']['pg_ddl_deploy_installed'] == 'NotInstalled':
+                print(output_cli_result(False))
+                print
+                output_hint("Install docs at https://github.com/enova/pgl_ddl_deploy\n")
+            elif c['results']['pg_ddl_deploy_installed'] == 'InstalledNoSharedLibraries':
+                print(output_cli_result(False))
+                output_hint("Add pgl_ddl_deploy.so to shared_preload_libraries in postgresql.conf")
+            else:
+                print(output_cli_result(c['results']['pg_ddl_deploy_installed']))
 
             output_cli_message("Needed wal_level setting")
             c = checks(t, 'wal_level', db_conn=conn)
@@ -134,6 +147,7 @@ def checks(target, single_test=None, db_conn=None):
         "tmp_folder",
         "connection",
         "pglogical_installed",
+        "pg_ddl_deploy_installed",
         "max_worker_processes",
         "max_replication_slots",
         "wal_level",
@@ -166,6 +180,20 @@ def checks(target, single_test=None, db_conn=None):
             # The extension is not already present in db
             # Check if we can install it using create extension command
             checks_result[c] = create_extension(db_conn, 'pglogical', test=True)
+
+        elif c == 'pg_ddl_deploy_installed':
+            if not db_conn:
+                continue
+
+            # Look at installation instrutions at:
+            # https://github.com/enova/pgl_ddl_deploy
+            if check_extension(db_conn, 'pgl_ddl_deploy'):
+                checks_result[c] = True
+
+            # The extension is not already present in db
+            # Check if we can install it using create extension command
+            checks_result[c] = create_extension(db_conn, 'pglogical', test=False)
+            checks_result[c] = create_extension(db_conn, 'pgl_ddl_deploy', test=True)
 
         elif c == 'max_worker_processes':
             if not db_conn:
@@ -265,23 +293,38 @@ def checks(target, single_test=None, db_conn=None):
             if other_db_version > db_version:
                 db_version = other_db_version
 
+            db_version_rule = re.compile(r'^([0-9.]+)')
+            if not db_version_rule.match(db_version):
+                reusable_results['pg_dumpall'] = "Invalid PostgreSQL version %s" % db_version
+                checks_result[c] = False
+                continue
+            db_version = db_version_rule.match(db_version).group(1)
+
+            if db_version.count('.')<2:
+                db_version += '.0'
+
             pg_dumpall_exists = os.system("which pg_dumpall >/dev/null") == 0
 
             if not pg_dumpall_exists:
                 reusable_results['pg_dumpall'] = "Install postgresql client utils locally."
                 checks_result[c] = False
                 continue
-
-            version_rule = re.compile(".*([0-9]\.[0-9]\.[0-9]).*")
-            pg_dumpall_version = version_rule.match(subprocess.check_output(["pg_dumpall", "--version"]))
+            # see semver._REGEX
+            pgdumpall_version_rule = re.compile(r""".*pg_dumpall \(PostgreSQL\) ([0-9.]+).*""")
+            pg_dumpall_version = subprocess.check_output(["pg_dumpall", "--version"])
+            pg_dumpall_version = pgdumpall_version_rule.match(pg_dumpall_version)
             if not pg_dumpall_version:
                 reusable_results['pg_dumpall'] = "Install PostgreSQL client utils locally."
                 checks_result[c] = False
                 continue
-
-            if pg_dumpall_version.group(1) < db_version:
+            pg_dumpall_version = pg_dumpall_version.group(1)
+            if pg_dumpall_version.count('.')<2:
+                pg_dumpall_version += '.0'
+            if semver.match(pg_dumpall_version, "<" + db_version):
                 checks_result[c] = False
-                reusable_results['pg_dumpall'] = "Upgrade local PostgreSQL client utils to version %s" % db_version
+                reusable_results['pg_dumpall'] = "Upgrade local PostgreSQL client utils %s to version %s" % (
+                    pg_dumpall_version, db_version
+                )
                 continue
 
             checks_result[c] = True
