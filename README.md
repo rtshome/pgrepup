@@ -7,7 +7,7 @@ and pglogical extension.
 pgrepup simplifies the setup of 2nd Quadrant's pglogical extension giving hints for configuring correctly source and
 destination pgsql clusters.
 
-The supported versions of PostgreSQL are 9.4, 9.5 and 9.6.
+The supported versions of PostgreSQL are 9.4, 9.5, 9.6 and 10.
 
 ## Quick start
 
